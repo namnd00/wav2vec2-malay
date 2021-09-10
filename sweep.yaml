@@ -6,31 +6,43 @@ metric:
   goal: minimize
 parameters:
   attention_dropout:
-    distribution: log_uniform
-    # from 0.1/5 to 0.1*5 - values provided are ln(min) -> ln(max)
-    min: -3.9
-    max: -0.7
+    values:
+      - 0.1
+#    distribution: log_uniform
+#    # from 0.1/5 to 0.1*5 - values provided are ln(min) -> ln(max)
+#    min: -3.9
+#    max: -0.7
   activation_dropout:
-    distribution: log_uniform
-    min: -3.9
-    max: -0.7
+    values:
+      - 0.1
+#    distribution: log_uniform
+#    min: -3.9
+#    max: -0.7
   hidden_dropout:
-    distribution: log_uniform
-    min: -3.9
-    max: -0.7
+    values:
+      - 0.1
+#    distribution: log_uniform
+#    min: -3.9
+#    max: -0.7
   feat_proj_dropout:
-    distribution: log_uniform
-    min: -3.9
-    max: -0.7
+    values:
+      - 0.1
+#    distribution: log_uniform
+#    min: -3.9
+#    max: -0.7
   mask_time_prob:
-    distribution: log_uniform
-    min: -3.9
-    max: -0.7
+    values:
+      - 0.1
+#    distribution: log_uniform
+#    min: -3.9
+#    max: -0.7
   layerdrop:
-    distribution: log_uniform
-    # from 0.05/2 to 0.05*2 - values provided are ln(min) -> ln(max)
-    min: -4.6
-    max: -1.6
+    values:
+      - 0.1
+#    distribution: log_uniform
+#    # from 0.05/2 to 0.05*2 - values provided are ln(min) -> ln(max)
+#    min: -4.6
+#    max: -1.6
   learning_rate:
     distribution: log_uniform
     min: -9.2
