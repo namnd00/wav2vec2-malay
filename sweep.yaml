@@ -13,11 +13,11 @@ parameters:
   activation_dropout:
     distribution: log_uniform
     min: -3.9
-    max: -1.9
+    max: -0.7
   hidden_dropout:
     distribution: log_uniform
     min: -3.9
-    max: -1.9
+    max: -0.7
   feat_proj_dropout:
     distribution: log_uniform
     min: -3.9
@@ -25,7 +25,7 @@ parameters:
   mask_time_prob:
     distribution: log_uniform
     min: -3.9
-    max: -1.6
+    max: -0.7
   layerdrop:
     distribution: log_uniform
     # from 0.05/2 to 0.05*2 - values provided are ln(min) -> ln(max)
@@ -38,10 +38,15 @@ parameters:
   weight_decay:
     values:
       - 0.005
+  warmup_ratio:
+    values:
+      - 0.1
+  warmup_steps:
+    values:
+      - 500
   gradient_accumulation_steps:
     values:
-      - 2
-      - 4
+      - 1
 command:
   - python
   - ${program}
