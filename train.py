@@ -595,10 +595,8 @@ def main():
         tokenizer=processor.feature_extractor,
     )
     loss_nan_stopping_callback = LossNaNStoppingCallback()
-    early_stopping_callback = EarlyStoppingCallback()
     timing_callback = TimingCallback()
     trainer.add_callback(loss_nan_stopping_callback)
-    trainer.add_callback(early_stopping_callback)
     trainer.add_callback(timing_callback)
 
     # Training
