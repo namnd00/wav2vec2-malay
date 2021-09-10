@@ -6,7 +6,10 @@ Contact : nam.nd.d3@gmail.com
 Time    : 9/9/2021 2:27 PM
 Desc:
 """
+import re
+
 import pandas as pd
+import torchaudio
 import wandb
 import json
 import logging
@@ -17,16 +20,17 @@ import numpy as np
 import torch
 import transformers
 
+from unidecode import unidecode
 from callbacks import LossNaNStoppingCallback, TimingCallback
 from datasets import Dataset
 from pathlib import Path
-from prepare_dataset import (remove_special_characters,
-                             extract_all_chars,
-                             get_resampler,
-                             speech_file_to_array_fn,
-                             filter_by_duration,
-                             prepare_dataset,
-                             get_length)
+# from prepare_dataset import (remove_special_characters,
+#                              extract_all_chars,
+#                              get_resampler,
+#                              speech_file_to_array_fn,
+#                              filter_by_duration,
+#                              prepare_dataset,
+#                              get_length)
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, Union
 from packaging import version
@@ -48,6 +52,7 @@ from transformers import (
 
 from argument_classes import ModelArguments, DataTrainingArguments
 from timer import Timer
+from transforms.spec_augment import Compose, FrequencyMask, TimeMask
 
 if is_apex_available():
     from apex import amp
@@ -55,7 +60,6 @@ if is_apex_available():
 if version.parse(torch.__version__) >= version.parse("1.6"):
     _is_native_amp_available = True
     from torch.cuda.amp import autocast
-
 
 logger = logging.getLogger(__name__)
 log_timestamp = Timer()
@@ -188,6 +192,101 @@ class CTCTrainer(Trainer):
         return loss.detach()
 
 
+def remove_special_characters(batch, chars_to_ignore_regex, train=True):
+    batch["text"] = (
+        re.sub(chars_to_ignore_regex, "", unidecode(batch["transcript"]))
+            .lower()
+            .strip()
+    )
+    if train:
+        batch["text"] += " "
+    return batch
+
+
+def extract_all_chars(batch):
+    all_text = " ".join(batch["text"])
+    vocab = list(set(all_text))
+    return {"vocab": [vocab], "all_text": [all_text]}
+
+
+def get_resampler(sampling_rate, resampler=dict()):
+    if sampling_rate in resampler.keys():
+        return resampler[sampling_rate]
+    else:
+        logger.info(f"Creating new resampler for {sampling_rate}")
+        resampler[sampling_rate] = torchaudio.transforms.Resample(
+            sampling_rate, 16_000
+        )
+        return resampler[sampling_rate]
+
+
+def get_spec_augment(max_width=10, use_mean=False):
+    return Compose([
+        FrequencyMask(max_width=max_width, use_mean=use_mean),
+        TimeMask(max_width=max_width, use_mean=use_mean),
+    ])
+
+
+def get_noise_speech(noise_path=None):
+    pass
+
+
+# Preprocessing the datasets.
+# We need to read the audio files as arrays and tokenize the targets.
+def speech_file_to_array_fn(batch):
+    # if spec_augment:
+    #     transforms = get_spec_augment(max_width, use_mean)
+    # if add_noise:
+    #     pass
+    speech_array, sampling_rate = torchaudio.load(batch["path"])
+    # if transforms is not None:
+    #     speech_array = transforms(speech_array)
+    batch["speech"] = get_resampler(sampling_rate)(speech_array).squeeze().numpy()
+    batch["sampling_rate"] = 16_000
+    batch["target_text"] = batch["text"]
+    batch["duration"] = len(speech_array.squeeze()) / sampling_rate
+    return batch
+
+
+# def augment_add_noise_speech_file_to_array_fn(batch, augment):
+#     speech_array, sampling_rate = torchaudio.load(batch["path"])
+#     len_augment = len(augment)
+#     id_rand = np.random.randint(int(len_augment * 0.9))
+#     speech_array = speech_array + augment[id_rand: len(speech_array) + id_rand] * 0.3
+#     batch["speech"] = speech_array
+#     batch["sampling_rate"] = sampling_rate
+#     batch["transcript"] = batch["transcript"].lower()
+#     batch["target_text"] = batch["transcript"]
+#     return batch
+
+
+def filter_by_duration(batch):
+    return (
+            10 >= batch["duration"] >= 1
+            and len(batch["target_text"]) > 5
+    )  # about 98% of samples
+
+
+def prepare_dataset(batch, processor):
+    # check that all files have the correct sampling rate
+    assert (
+            len(set(batch["sampling_rate"])) == 1
+    ), f"Make sure all inputs have the same sampling rate of {processor.feature_extractor.sampling_rate}."
+    batch["input_values"] = processor(
+        batch["speech"], sampling_rate=batch["sampling_rate"][0]
+    ).input_values
+    # Setup the processor for targets
+    with processor.as_target_processor():
+        batch["labels"] = processor(batch["target_text"]).input_ids
+    return batch
+
+
+def get_length(item):
+    # speeds up grouping by length in pre-loaded dataset
+    item["length"] = len(item["input_values"])
+    return item
+
+
 def main():
     # See all possible arguments in src/transformers/training_args.py
     # or by passing the --help flag to this script.
@@ -281,7 +380,7 @@ def main():
         test_csv.to_csv(f'{data_args.dataset_config_name}/test.csv')
         logger.info(f"Train size: {len(train_csv)} - Val size: {len(eval_csv)} - Test size: {len(test_csv)}")
         logger.info(f"split data to train/test->"
-                    f"{data_args.train_test_split_ratio}/{1-data_args.train_test_split_ratio}")
+                    f"{data_args.train_test_split_ratio}/{1 - data_args.train_test_split_ratio}")
 
     log_timestamp()
 
