@@ -53,9 +53,9 @@ command:
   - "--model_name_or_path"
   - "facebook/wav2vec2-large-xlsr-53"
   - "--dataset_config_name"
-  - "./tests"
+  - "./datasets"
   - "--train_split_name"
-  - "./tests/submission.csv"
+  - "./datasets/submission.csv"
   - "--output_dir"
   - "./model"
   - "--overwrite_output_dir"
@@ -74,7 +74,7 @@ command:
   - "--save_total_limit"
   - 1
   - "--logging_steps"
-  - 1
+  - 500
   - "--warmup_steps"
   - 500
   - ${args}
