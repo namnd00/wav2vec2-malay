@@ -1,5 +1,5 @@
 program: train.py
-project: wav2vec4humans
+project: wav2vec4malay
 method: random
 metric:
   name: metrics/wer

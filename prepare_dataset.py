@@ -18,7 +18,7 @@ logger = logging.getLogger(__name__)
 
 def remove_special_characters(batch, chars_to_ignore_regex, train=True):
     batch["text"] = (
-        re.sub(chars_to_ignore_regex, "", unidecode(batch["sentence"]))
+        re.sub(chars_to_ignore_regex, "", unidecode(batch["transcript"]))
             .lower()
             .strip()
     )

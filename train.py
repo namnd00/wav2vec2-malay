@@ -292,7 +292,8 @@ def main():
         train_dataset = Dataset.from_pandas(train_csv)
         log_timestamp("load train data")
         train_dataset = train_dataset.map(
-            remove_special_characters, remove_columns=["transcript"]
+            lambda x: remove_special_characters(x, chars_to_ignore_regex, train=False),
+            remove_columns=["transcript"]
         )
         log_timestamp("remove special characters")
 
@@ -304,7 +305,8 @@ def main():
             eval_dataset = Dataset.from_pandas(eval_csv)
             log_timestamp("load val data")
             eval_dataset = eval_dataset.map(
-                remove_special_characters, remove_columns=["transcript"]
+                lambda x: remove_special_characters(x, chars_to_ignore_regex, train=False),
+                remove_columns=["transcript"]
             )
             log_timestamp("remove special characters")
 
@@ -317,7 +319,7 @@ def main():
         test_dataset = Dataset.from_pandas(test_csv)
         log_timestamp("load test data")
         test_dataset = test_dataset.map(
-            lambda x: remove_special_characters(x, train=False),
+            lambda x: remove_special_characters(x, chars_to_ignore_regex, train=False),
             remove_columns=["transcript"],
         )
         log_timestamp("remove special characters")
@@ -402,7 +404,7 @@ def main():
         )
         log_timestamp("filter data")
         train_dataset = train_dataset.map(
-            prepare_dataset,
+            lambda x: prepare_dataset(x, processor),
             remove_columns=train_dataset.column_names,
             batch_size=training_args.per_device_train_batch_size,
             batched=True,
@@ -429,7 +431,7 @@ def main():
             num_proc=data_args.preprocessing_num_workers,
         )
         eval_dataset = eval_dataset.map(
-            prepare_dataset,
+            lambda x: prepare_dataset(x, processor),
             remove_columns=eval_dataset.column_names,
             batch_size=training_args.per_device_eval_batch_size,
             batched=True,
