@@ -665,6 +665,7 @@ def main():
     )
     loss_nan_stopping_callback = LossNaNStoppingCallback()
     timing_callback = TimingCallback()
+    early_stopping_callback = EarlyStoppingCallback()
     trainer.add_callback(loss_nan_stopping_callback)
     trainer.add_callback(timing_callback)
 

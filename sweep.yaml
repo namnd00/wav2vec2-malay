@@ -1,6 +1,11 @@
 program: train.py
 project: wav2vec4malay
 method: random
+early_terminate:
+   type: hyperband
+   s: 2
+   eta: 3
+   max_iter: 1
 metric:
   name: metrics/wer
   goal: minimize
