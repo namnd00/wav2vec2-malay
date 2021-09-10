@@ -7,6 +7,7 @@ Time    : 9/9/2021 2:27 PM
 Desc:
 """
 import re
+import time
 
 import pandas as pd
 import torchaudio
@@ -20,8 +21,12 @@ import numpy as np
 import torch
 import transformers
 
+import time
+import logging
+import wandb
+
+from inspect import getframeinfo, stack
 from unidecode import unidecode
-from callbacks import LossNaNStoppingCallback, TimingCallback
 from datasets import Dataset
 from pathlib import Path
 # from prepare_dataset import (remove_special_characters,
@@ -45,13 +50,13 @@ from transformers import (
     Wav2Vec2FeatureExtractor,
     Wav2Vec2ForCTC,
     Wav2Vec2Processor,
+    TrainerCallback,
     EarlyStoppingCallback,
     is_apex_available,
     set_seed,
 )
 
 from argument_classes import ModelArguments, DataTrainingArguments
-from timer import Timer
 from transforms.spec_augment import Compose, FrequencyMask, TimeMask
 
 if is_apex_available():
@@ -60,9 +65,6 @@ if is_apex_available():
 if version.parse(torch.__version__) >= version.parse("1.6"):
     _is_native_amp_available = True
     from torch.cuda.amp import autocast
-
-logger = logging.getLogger(__name__)
-log_timestamp = Timer()
 
 
 @dataclass
@@ -192,6 +194,70 @@ class CTCTrainer(Trainer):
         return loss.detach()
 
 
+class Timer:
+    """
+    Measure time elapsed since start and since last measurement.
+    """
+
+    def __init__(self):
+        self.start = self.last = time.perf_counter()
+
+    def __call__(self, msg=None):
+        t = time.perf_counter()
+        timestamp = t - self.start
+        duration = t - self.last
+        self.last = t
+        if msg is None:
+            caller = getframeinfo(stack()[1][0])
+            msg = f"line {caller.lineno}"
+        wandb.log({f"timestamps/{msg}": timestamp})
+        wandb.log({f"durations/{msg}": duration})
+        logger.info(
+            f"*** TIMER *** - {msg} - Timestamp {timestamp:0.4f} seconds - Duration {duration:0.4f} seconds"
+        )
+
+
+class LossNaNStoppingCallback(TrainerCallback):
+    """
+    Stops training when loss is NaN.
+
+    Loss is accessed through last logged values so it is useful to set
+    :class:`~transformers.TrainingArguments` argument `logging_steps` to 1.
+    """
+
+    def __init__(self):
+        self.stopped = False
+
+    def on_log(self, args, state, control, logs=None, **kwargs):
+        if np.isnan(logs.get("loss", 0.0)):
+            self.stopped = True
+            control.should_training_stop = True
+            logger.info("Loss NaN detected, terminating training")
+
+
+class TimingCallback(TrainerCallback):
+    """
+    Logs some interesting timestamps.
+    """
+
+    def __init__(self):
+        self.training_started = False
+        self.evaluation_started = False
+
+    def on_step_begin(self, args, state, control, **kwargs):
+        if not self.training_started:
+            log_timestamp("trainer ready to start 1st step")
+
+    def on_step_end(self, args, state, control, **kwargs):
+        if not self.training_started:
+            self.training_started = True
+            log_timestamp("first training step")
+
+
+logger = logging.getLogger(__name__)
+log_timestamp = Timer()
+
+
 def remove_special_characters(batch, chars_to_ignore_regex, train=True):
     batch["text"] = (
         re.sub(chars_to_ignore_regex, "", unidecode(batch["transcript"]))
@@ -209,7 +275,10 @@ def extract_all_chars(batch):
     return {"vocab": [vocab], "all_text": [all_text]}
 
 
-def get_resampler(sampling_rate, resampler=dict()):
+resampler = dict()
+
+
+def get_resampler(sampling_rate):
     if sampling_rate in resampler.keys():
         return resampler[sampling_rate]
     else:
