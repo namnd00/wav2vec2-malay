@@ -57,19 +57,14 @@ def get_noise_speech(noise_path=None):
 
 # Preprocessing the datasets.
 # We need to read the audio files as arrays and tokenize the targets.
-def speech_file_to_array_fn(batch,
-                            spec_augment=True,
-                            add_noise=False,
-                            transforms=None,
-                            max_width=10,
-                            use_mean=False):
-    if spec_augment:
-        transforms = get_spec_augment(max_width, use_mean)
-    if add_noise:
-        pass
+def speech_file_to_array_fn(batch):
+    # if spec_augment:
+    #     transforms = get_spec_augment(max_width, use_mean)
+    # if add_noise:
+    #     pass
     speech_array, sampling_rate = torchaudio.load(batch["path"])
-    if transforms is not None:
-        speech_array = transforms(speech_array)
+    # if transforms is not None:
+    #     speech_array = transforms(speech_array)
     batch["speech"] = get_resampler(sampling_rate)(speech_array).squeeze().numpy()
     batch["sampling_rate"] = 16_000
     batch["target_text"] = batch["text"]
