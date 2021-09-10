@@ -11,6 +11,7 @@ import re
 import logging
 
 from unidecode import unidecode
+from transforms.spec_augment import TimeMask, FrequencyMask, Compose
 
 logger = logging.getLogger(__name__)
 
@@ -32,10 +33,7 @@ def extract_all_chars(batch):
     return {"vocab": [vocab], "all_text": [all_text]}
 
 
-resampler = dict()
-
-
-def get_resampler(sampling_rate):
+def get_resampler(sampling_rate, resampler=None):
     if sampling_rate in resampler.keys():
         return resampler[sampling_rate]
     else:
@@ -46,15 +44,49 @@ def get_resampler(sampling_rate):
         return resampler[sampling_rate]
 
 
+def get_spec_augment(max_width=10, use_mean=False):
+    return Compose([
+        FrequencyMask(max_width=max_width, use_mean=use_mean),
+        TimeMask(max_width=max_width, use_mean=use_mean),
+    ])
+
+
+def get_noise_speech(noise_path=None):
+    pass
+
+
 # Preprocessing the datasets.
 # We need to read the audio files as arrays and tokenize the targets.
-def speech_file_to_array_fn(batch):
+def speech_file_to_array_fn(batch,
+                            spec_augment=True,
+                            add_noise=False,
+                            transforms=None,
+                            max_width=10,
+                            use_mean=False):
+    if spec_augment:
+        transforms = get_spec_augment(max_width, use_mean)
+    if add_noise:
+        pass
     speech_array, sampling_rate = torchaudio.load(batch["path"])
+    if transforms is not None:
+        speech_array = transforms(speech_array)
     batch["speech"] = get_resampler(sampling_rate)(speech_array).squeeze().numpy()
     batch["sampling_rate"] = 16_000
     batch["target_text"] = batch["text"]
     batch["duration"] = len(speech_array.squeeze()) / sampling_rate
     return batch
+
+
+# def augment_add_noise_speech_file_to_array_fn(batch, augment):
+#     speech_array, sampling_rate = torchaudio.load(batch["path"])
+#     len_augment = len(augment)
+#     id_rand = np.random.randint(int(len_augment * 0.9))
+#     speech_array = speech_array + augment[id_rand: len(speech_array) + id_rand] * 0.3
+#     batch["speech"] = speech_array
+#     batch["sampling_rate"] = sampling_rate
+#     batch["transcript"] = batch["transcript"].lower()
+#     batch["target_text"] = batch["transcript"]
+#     return batch
 
 
 def filter_by_duration(batch):
