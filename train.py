@@ -667,7 +667,7 @@ def main():
             checkpoint = model_args.model_name_or_path
         else:
             checkpoint = None
-        log_timestamp()
+
         train_result = trainer.train(resume_from_checkpoint=checkpoint)
         log_timestamp("train model")
         trainer.save_model()
