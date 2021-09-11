@@ -80,12 +80,14 @@ command:
   - "--freeze_feature_extractor"
   - "--group_by_length"
   - "--gradient_checkpointing"
-  - "--eval_steps"
-  - 1000
   - "--do_train"
   - "--do_eval"
   - "--save_total_limit"
   - 1
+  - "--evaluation_strategy"
+  - "steps"
+  - "--eval_steps"
+  - 1000
   - "--logging_steps"
   - 500
   - "--warmup_steps"
