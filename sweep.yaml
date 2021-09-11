@@ -1,11 +1,6 @@
 program: train.py
 project: wav2vec4malay
 method: random
-early_terminate:
-   type: hyperband
-   s: 2
-   eta: 3
-   max_iter: 27
 metric:
   name: metrics/wer
   goal: minimize
@@ -31,13 +26,13 @@ parameters:
 #    max: -0.7
   feat_proj_dropout:
     values:
-      - 0.1
+      - 0.0
 #    distribution: log_uniform
 #    min: -3.9
 #    max: -0.7
   mask_time_prob:
     values:
-      - 0.1
+      - 0.05
 #    distribution: log_uniform
 #    min: -3.9
 #    max: -0.7
@@ -55,9 +50,6 @@ parameters:
   weight_decay:
     values:
       - 0.005
-  warmup_ratio:
-    values:
-      - 0.1
   warmup_steps:
     values:
       - 500
@@ -86,6 +78,8 @@ command:
   - "--freeze_feature_extractor"
   - "--group_by_length"
   - "--gradient_checkpointing"
+  - "--eval_steps"
+  - 1000
   - "--do_train"
   - "--do_eval"
   - "--save_total_limit"

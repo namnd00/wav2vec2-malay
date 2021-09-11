@@ -331,8 +331,8 @@ def speech_file_to_array_fn(batch):
 
 def filter_by_duration(batch):
     return (
-            10 >= batch["duration"] >= 1
-            and len(batch["target_text"]) > 5
+            20 >= batch["duration"] >= 1
+            and len(batch["target_text"]) >= 1
     )  # about 98% of samples
 
 
