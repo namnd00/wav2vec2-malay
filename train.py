@@ -374,7 +374,7 @@ def main():
         model_args, data_args, training_args = parser.parse_args_into_dataclasses()
 
     # override default run name and log all args
-    wandb.init(project="wav2vec2-malay", config=parser.parse_args())
+    wandb.init(project="wav2vec2-malay", config=wandb.config)
 
     # Detecting last checkpoint.
     last_checkpoint = None
@@ -451,8 +451,6 @@ def main():
         logger.info(f"split data to train/test->"
                     f"{data_args.train_test_split_ratio}/{1 - data_args.train_test_split_ratio}")
 
-    log_timestamp()
-
     if Path(dataset_train_path).exists() and Path(vocab_path).exists():
         train_dataset = datasets.load_from_disk(dataset_train_path)
         log_timestamp("load pre-processed data")
@@ -478,8 +476,6 @@ def main():
             )
             log_timestamp("remove special characters")
 
-    log_timestamp()
-
     if Path(dataset_test_path).exists() and Path(vocab_path).exists():
         test_dataset = datasets.load_from_disk(dataset_test_path)
         log_timestamp("load pre-processed data")
@@ -491,8 +487,6 @@ def main():
             remove_columns=["transcript"],
         )
         log_timestamp("remove special characters")
-
-    log_timestamp()
 
     if not Path(vocab_path).exists():
         # create vocab
@@ -610,7 +604,6 @@ def main():
             num_proc=data_args.preprocessing_num_workers,
         )
         eval_dataset.save_to_disk(dataset_eval_path)
-    log_timestamp()
 
     if not Path(dataset_test_path).exists():
         test_dataset = test_dataset.map(
@@ -621,12 +614,11 @@ def main():
             filter_by_duration, remove_columns=["duration"]
         )
         test_dataset.save_to_disk(dataset_test_path)
-    log_timestamp()
 
     # Metric
     cer_metric = datasets.load_metric("cer")
     # we use a custom WER that considers punctuation
-    wer_metric = datasets.load_metric("metrics/wer_punctuation.py")
+    wer_metric = datasets.load_metric("wer")
 
     def compute_metrics(pred):
         pred_logits = pred.predictions
@@ -642,8 +634,6 @@ def main():
         wer = wer_metric.compute(predictions=pred_str, references=label_str)
 
         return {"cer": cer, "wer": wer}
-
-    log_timestamp()
 
     if model_args.freeze_feature_extractor:
         model.freeze_feature_extractor()
@@ -665,7 +655,6 @@ def main():
     )
     loss_nan_stopping_callback = LossNaNStoppingCallback()
     timing_callback = TimingCallback()
-    early_stopping_callback = EarlyStoppingCallback()
     trainer.add_callback(loss_nan_stopping_callback)
     trainer.add_callback(timing_callback)
 
