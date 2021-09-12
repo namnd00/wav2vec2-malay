@@ -545,12 +545,13 @@ def main():
             num_proc=data_args.preprocessing_num_workers,
         )
         log_timestamp("load audio")
-        train_dataset = train_dataset.map(
-            speech_augment,
-            remove_columns=train_dataset.column_names,
-            num_proc=data_args.preprocessing_num_workers,
-        )
-        log_timestamp("augment audio")
+        if data_args.data_augment:
+            train_dataset = train_dataset.map(
+                speech_augment,
+                remove_columns=train_dataset.column_names,
+                num_proc=data_args.preprocessing_num_workers,
+            )
+            log_timestamp("augment audio")
         train_dataset = train_dataset.filter(
             filter_by_duration,
             remove_columns=["duration"],
@@ -580,12 +581,13 @@ def main():
             num_proc=data_args.preprocessing_num_workers,
         )
         log_timestamp("load audio")
-        eval_dataset = eval_dataset.map(
-            speech_augment,
-            remove_columns=train_dataset.column_names,
-            num_proc=data_args.preprocessing_num_workers,
-        )
-        log_timestamp("augment audio")
+        if data_args.data_augment:
+            eval_dataset = eval_dataset.map(
+                speech_augment,
+                remove_columns=train_dataset.column_names,
+                num_proc=data_args.preprocessing_num_workers,
+            )
+            log_timestamp("augment audio")
         eval_dataset = eval_dataset.filter(
             filter_by_duration,
             remove_columns=["duration"],
