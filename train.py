@@ -282,10 +282,10 @@ def speech_augment(batch):
     sampling_rate = batch['sampling_rate']
 
     def random_pitch_shift():
-        return np.random.randint(-400, +400)
+        return torch.randint(-400, +400, (1, ))
 
     def random_room_size():
-        return np.random.randint(0, 101)
+        return torch.randint(0, 101, (1, ))
 
     def noise_generator():
         return torch.zeros_like(speech).uniform_()
@@ -295,8 +295,9 @@ def speech_augment(batch):
         .reverb(50, 50, random_room_size).channels(1) \
         .additive_noise(noise_generator, snr=15) \
         .time_dropout(max_seconds=1.0)
-    batch['speech'] = combination.apply(speech, src_info={'rate': sampling_rate}, target_info={'rate': sampling_rate})
-
+    trans_speech = combination.apply(speech, src_info={'rate': sampling_rate}, target_info={'rate': sampling_rate})
+    trans_speech.to('cuda')
+    batch['speech'] = trans_speech
     return batch
 
 
