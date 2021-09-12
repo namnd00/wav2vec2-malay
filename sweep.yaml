@@ -58,6 +58,9 @@ parameters:
   gradient_accumulation_steps:
     values:
       - 1
+  lr_scheduler_type:
+    values:
+      - cosine_with_restarts
 command:
   - python
   - ${program}
@@ -84,12 +87,8 @@ command:
   - "--do_eval"
   - "--save_total_limit"
   - 1
-  - "lr_scheduler_type"
-  - "cosine_with_restarts"
   - "--save_strategy"
   - "epoch"
   - "--evaluation_strategy"
-  - "epoch"
-  - "logging_strategy"
   - "epoch"
   - ${args}
