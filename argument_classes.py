@@ -127,3 +127,7 @@ class DataTrainingArguments:
         default=False,
         metadata={"help": "Augment speech data or not"}
     )
+    ratio_dataset: float = field(
+        default=0.6,
+        metadata={'help': "ratio data"}
+    )
