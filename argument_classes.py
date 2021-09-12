@@ -124,6 +124,6 @@ class DataTrainingArguments:
         default=8, metadata={"help": "Batch size per GPU/TPU core/CPU for testing."}
     )
     data_augment: bool = field(
-        default=True,
+        default=False,
         metadata={"help": "Augment speech data or not"}
     )
