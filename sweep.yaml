@@ -2,7 +2,7 @@ program: train.py
 project: wav2vec4malay
 method: random
 metric:
-  name: metrics/wer
+  name: wer
   goal: minimize
 parameters:
   attention_dropout:
@@ -45,7 +45,7 @@ parameters:
 #    max: -1.6
   learning_rate:
     values:
-      - 0.0005
+      - 5e-5
 #    distribution: log_uniform
 #    min: -9.2
 #    max: -6.9
@@ -84,12 +84,10 @@ command:
   - "--do_eval"
   - "--save_total_limit"
   - 1
+  - "--save_strategy"
+  - "epoch"
   - "--evaluation_strategy"
-  - "steps"
-  - "--eval_steps"
-  - 1000
-  - "--logging_steps"
-  - 500
-  - "--warmup_steps"
-  - 500
+  - "epoch"
+  - "logging_strategy"
+  - "epoch"
   - ${args}

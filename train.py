@@ -644,7 +644,7 @@ def main():
     log_timestamp("create data collator")
 
     # Initialize our Trainer
-    trainer = CTCTrainer(
+    trainer = Trainer(
         model=model,
         data_collator=data_collator,
         args=training_args,
@@ -678,6 +678,8 @@ def main():
 
         metrics = train_result.metrics
         metrics["train_samples"] = len(train_dataset)
+
+        wandb.log({f"train/{k}": v for k, v in metrics.items()})
 
         trainer.log_metrics("train", metrics)
         trainer.save_metrics("train", metrics)

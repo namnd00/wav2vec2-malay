@@ -105,7 +105,7 @@ class DataTrainingArguments:
         default=None,
         metadata={
             "help": "The name of the training data set split to use (via the datasets library). Defaults to "
-                    "'submission.csv' "
+                    "'submission_2.csv' "
         },
     )
     overwrite_cache: bool = field(
