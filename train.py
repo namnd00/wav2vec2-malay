@@ -278,8 +278,11 @@ def get_resampler(sampling_rate):
 
 
 def speech_augment(batch):
-    speech = batch['speech']
-    sampling_rate = batch['sampling_rate']
+    speech_array, sampling_rate = torchaudio.load(batch["path"])
+    speech_array = get_resampler(sampling_rate)(speech_array).squeeze().numpy()
+    batch["sampling_rate"] = 16_000
+    batch["target_text"] = batch["text"]
+    batch["duration"] = len(speech_array.squeeze()) / sampling_rate
 
     def random_pitch_shift():
         return np.random.randint(-400, +400)
@@ -288,16 +291,17 @@ def speech_augment(batch):
         return np.random.randint(0, 101)
 
     def noise_generator():
-        return torch.zeros_like(speech).uniform_()
+        return torch.zeros_like(speech_array).uniform_()
 
     combination = augment.EffectChain() \
         .pitch("-q", random_pitch_shift).rate(sampling_rate) \
         .reverb(50, 50, random_room_size).channels(1) \
         .additive_noise(noise_generator, snr=15) \
         .time_dropout(max_seconds=1.0)
-    trans_speech = combination.apply(speech.squeeze(),
+
+    trans_speech = combination.apply(speech_array,
                                      src_info={'rate': sampling_rate},
-                                     target_info={'rate': sampling_rate})
+                                     target_info={'rate': 16_000})
     batch['speech'] = trans_speech
     return batch
 
@@ -541,12 +545,6 @@ def main():
     log_timestamp("load model")
 
     if not Path(dataset_train_path).exists():
-        train_dataset = train_dataset.map(
-            speech_file_to_array_fn,
-            remove_columns=train_dataset.column_names,
-            num_proc=data_args.preprocessing_num_workers,
-        )
-        log_timestamp("load audio")
         if data_args.data_augment:
             train_dataset = train_dataset.map(
                 speech_augment,
@@ -554,6 +552,13 @@ def main():
                 num_proc=data_args.preprocessing_num_workers,
             )
             log_timestamp("augment audio")
+        else:
+            train_dataset = train_dataset.map(
+                speech_file_to_array_fn,
+                remove_columns=train_dataset.column_names,
+                num_proc=data_args.preprocessing_num_workers,
+            )
+            log_timestamp("load audio")
         train_dataset = train_dataset.filter(
             filter_by_duration,
             remove_columns=["duration"],
@@ -577,12 +582,6 @@ def main():
         log_timestamp("save to disk")
 
     if not Path(dataset_eval_path).exists() and training_args.do_eval:
-        eval_dataset = eval_dataset.map(
-            speech_file_to_array_fn,
-            remove_columns=eval_dataset.column_names,
-            num_proc=data_args.preprocessing_num_workers,
-        )
-        log_timestamp("load audio")
         if data_args.data_augment:
             eval_dataset = eval_dataset.map(
                 speech_augment,
@@ -590,6 +589,13 @@ def main():
                 num_proc=data_args.preprocessing_num_workers,
             )
             log_timestamp("augment audio")
+        else:
+            eval_dataset = eval_dataset.map(
+                speech_file_to_array_fn,
+                remove_columns=eval_dataset.column_names,
+                num_proc=data_args.preprocessing_num_workers,
+            )
+            log_timestamp("load audio")
         eval_dataset = eval_dataset.filter(
             filter_by_duration,
             remove_columns=["duration"],
