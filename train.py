@@ -7,13 +7,10 @@ Time    : 9/9/2021 2:27 PM
 Desc:
 """
 import re
-import time
-
+import augment
 import pandas as pd
 import torchaudio
-import wandb
 import json
-import logging
 import os
 import sys
 import datasets
@@ -29,13 +26,6 @@ from inspect import getframeinfo, stack
 from unidecode import unidecode
 from datasets import Dataset
 from pathlib import Path
-# from prepare_dataset import (remove_special_characters,
-#                              extract_all_chars,
-#                              get_resampler,
-#                              speech_file_to_array_fn,
-#                              filter_by_duration,
-#                              prepare_dataset,
-#                              get_length)
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, Union
 from packaging import version
@@ -51,13 +41,11 @@ from transformers import (
     Wav2Vec2ForCTC,
     Wav2Vec2Processor,
     TrainerCallback,
-    EarlyStoppingCallback,
     is_apex_available,
     set_seed,
 )
 
 from argument_classes import ModelArguments, DataTrainingArguments
-from transforms.spec_augment import Compose, FrequencyMask, TimeMask
 
 if is_apex_available():
     from apex import amp
@@ -289,11 +277,27 @@ def get_resampler(sampling_rate):
         return resampler[sampling_rate]
 
 
-def get_spec_augment(max_width=10, use_mean=False):
-    return Compose([
-        FrequencyMask(max_width=max_width, use_mean=use_mean),
-        TimeMask(max_width=max_width, use_mean=use_mean),
-    ])
+def speech_augment(batch):
+    speech = batch['speech']
+    sampling_rate = batch['sampling_rate']
+
+    def random_pitch_shift():
+        return np.random.randint(-400, +400)
+
+    def random_room_size():
+        return np.random.randint(0, 101)
+
+    def noise_generator():
+        return torch.zeros_like(speech).uniform_()
+
+    combination = augment.EffectChain() \
+        .pitch("-q", random_pitch_shift).rate(sampling_rate) \
+        .reverb(50, 50, random_room_size).channels(1) \
+        .additive_noise(noise_generator, snr=15) \
+        .time_dropout(max_seconds=1.0)
+    batch['speech'] = combination.apply(speech, src_info={'rate': sampling_rate}, target_info={'rate': sampling_rate})
+
+    return batch
 
 
 def get_noise_speech(noise_path=None):
@@ -303,30 +307,12 @@ def get_noise_speech(noise_path=None):
 # Preprocessing the datasets.
 # We need to read the audio files as arrays and tokenize the targets.
 def speech_file_to_array_fn(batch):
-    # if spec_augment:
-    #     transforms = get_spec_augment(max_width, use_mean)
-    # if add_noise:
-    #     pass
     speech_array, sampling_rate = torchaudio.load(batch["path"])
-    # if transforms is not None:
-    #     speech_array = transforms(speech_array)
     batch["speech"] = get_resampler(sampling_rate)(speech_array).squeeze().numpy()
     batch["sampling_rate"] = 16_000
     batch["target_text"] = batch["text"]
     batch["duration"] = len(speech_array.squeeze()) / sampling_rate
     return batch
-
-
-# def augment_add_noise_speech_file_to_array_fn(batch, augment):
-#     speech_array, sampling_rate = torchaudio.load(batch["path"])
-#     len_augment = len(augment)
-#     id_rand = np.random.randint(int(len_augment * 0.9))
-#     speech_array = speech_array + augment[id_rand: len(speech_array) + id_rand] * 0.3
-#     batch["speech"] = speech_array
-#     batch["sampling_rate"] = sampling_rate
-#     batch["transcript"] = batch["transcript"].lower()
-#     batch["target_text"] = batch["transcript"]
-#     return batch
 
 
 def filter_by_duration(batch):
@@ -559,6 +545,12 @@ def main():
             num_proc=data_args.preprocessing_num_workers,
         )
         log_timestamp("load audio")
+        train_dataset = train_dataset.map(
+            speech_augment,
+            remove_columns=train_dataset.column_names,
+            num_proc=data_args.preprocessing_num_workers,
+        )
+        log_timestamp("augment audio")
         train_dataset = train_dataset.filter(
             filter_by_duration,
             remove_columns=["duration"],
@@ -587,11 +579,19 @@ def main():
             remove_columns=eval_dataset.column_names,
             num_proc=data_args.preprocessing_num_workers,
         )
+        log_timestamp("load audio")
+        eval_dataset = eval_dataset.map(
+            speech_augment,
+            remove_columns=train_dataset.column_names,
+            num_proc=data_args.preprocessing_num_workers,
+        )
+        log_timestamp("augment audio")
         eval_dataset = eval_dataset.filter(
             filter_by_duration,
             remove_columns=["duration"],
             num_proc=data_args.preprocessing_num_workers,
         )
+        log_timestamp("filter data")
         eval_dataset = eval_dataset.map(
             lambda x: prepare_dataset(x, processor),
             remove_columns=eval_dataset.column_names,
@@ -599,11 +599,14 @@ def main():
             batched=True,
             num_proc=data_args.preprocessing_num_workers,
         )
+        log_timestamp("process data")
         eval_dataset = eval_dataset.map(
             get_length,
             num_proc=data_args.preprocessing_num_workers,
         )
+        log_timestamp("add input length")
         eval_dataset.save_to_disk(dataset_eval_path)
+        log_timestamp("save to disk")
 
     if not Path(dataset_test_path).exists():
         test_dataset = test_dataset.map(

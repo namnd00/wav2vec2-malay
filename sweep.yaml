@@ -1,6 +1,6 @@
 program: train.py
 project: wav2vec4malay
-method: random
+method: bayes
 metric:
   name: wer
   goal: minimize
@@ -84,6 +84,8 @@ command:
   - "--do_eval"
   - "--save_total_limit"
   - 1
+  - "lr_scheduler_type"
+  - "cosine_with_restarts"
   - "--save_strategy"
   - "epoch"
   - "--evaluation_strategy"
