@@ -430,8 +430,8 @@ def main():
 
     if Path(data_args.train_split_name).exists():
         sub_df = pd.read_csv(data_args.train_split_name, encoding='utf-8')
-        if data_args.ratio_dataset:
-            sub_df = sub_df[np.random.rand(len(sub_df)) <= data_args.ratio_dataset]
+        # if data_args.ratio_dataset:
+        #    sub_df = sub_df[np.random.rand(len(sub_df)) <= data_args.ratio_dataset]
         msk = np.random.rand(len(sub_df)) <= data_args.train_test_split_ratio
         temp_csv = sub_df[msk]
         msk_train = np.random.rand(len(temp_csv)) <= data_args.train_test_split_ratio
