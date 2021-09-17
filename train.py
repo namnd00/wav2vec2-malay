@@ -434,7 +434,7 @@ def main():
         #    sub_df = sub_df[np.random.rand(len(sub_df)) <= data_args.ratio_dataset]
         msk = np.random.rand(len(sub_df)) <= data_args.train_test_split_ratio
         train_csv = sub_df[msk]
-        msk_train = np.random.rand(len(temp_csv)) <= data_args.train_test_split_ratio
+        msk_train = np.random.rand(len(train_csv)) <= data_args.train_test_split_ratio
         temp_train_csv = train_csv[msk_train]
         eval_csv = train_csv[~msk_train]
         test_csv = sub_df[~msk]
