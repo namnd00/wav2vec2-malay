@@ -433,12 +433,12 @@ def main():
         # if data_args.ratio_dataset:
         #    sub_df = sub_df[np.random.rand(len(sub_df)) <= data_args.ratio_dataset]
         msk = np.random.rand(len(sub_df)) <= data_args.train_test_split_ratio
-        temp_csv = sub_df[msk]
+        train_csv = sub_df[msk]
         msk_train = np.random.rand(len(temp_csv)) <= data_args.train_test_split_ratio
-        train_csv = temp_csv[msk_train]
-        eval_csv = temp_csv[~msk_train]
+        temp_train_csv = train_csv[msk_train]
+        eval_csv = train_csv[~msk_train]
         test_csv = sub_df[~msk]
-        temp_csv.to_csv(f'{data_args.dataset_config_name}/train.csv')
+        train_csv.to_csv(f'{data_args.dataset_config_name}/train.csv')
         eval_csv.to_csv(f'{data_args.dataset_config_name}/eval.csv')
         test_csv.to_csv(f'{data_args.dataset_config_name}/test.csv')
         logger.info(f"Train size: {len(train_csv)} - Val size: {len(eval_csv)} - Test size: {len(test_csv)}")
