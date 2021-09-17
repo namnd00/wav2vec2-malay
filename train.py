@@ -438,7 +438,7 @@ def main():
         train_csv = temp_csv[msk_train]
         eval_csv = temp_csv[~msk_train]
         test_csv = sub_df[~msk]
-        train_csv.to_csv(f'{data_args.dataset_config_name}/train.csv')
+        temp_csv.to_csv(f'{data_args.dataset_config_name}/train.csv')
         eval_csv.to_csv(f'{data_args.dataset_config_name}/eval.csv')
         test_csv.to_csv(f'{data_args.dataset_config_name}/test.csv')
         logger.info(f"Train size: {len(train_csv)} - Val size: {len(eval_csv)} - Test size: {len(test_csv)}")
