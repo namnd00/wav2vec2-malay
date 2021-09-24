@@ -14,7 +14,7 @@ import torch.nn.functional as F
 import torch
 import pandas as pd
 from torch.utils.data import Dataset
-from src.augmentation.augment_audio import generate_compose_transform, ComposeTransform
+from src.dataloader.augment_audio import generate_compose_transform, ComposeTransform
 
 logger = logging.getLogger(__name__)
 
