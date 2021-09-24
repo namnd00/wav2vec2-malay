@@ -1,34 +1,34 @@
 # coding:utf-8
 """
-Name : audio_dataset.py
+Name : malay_audio_dataset.py
 Author : Nam Nguyen
 Contact : nam.nd.d3@gmail.com
-Time    : 9/23/2021 2:59 PM
+Time    : 9/24/2021 10:16 AM
 Desc:
 """
 import os
+import sys
 import logging
 import numpy as np
-import sys
-
-import torch
 import torch.nn.functional as F
-
-from fairseq_dataset import FairseqDataset
+import torch
+import pandas as pd
+from torch.utils.data import Dataset
+from src.augmentation.augment_audio import generate_compose_transform, ComposeTransform
 
 logger = logging.getLogger(__name__)
 
 
-class RawAudioDataset(FairseqDataset):
+class MalayAudioDataset(Dataset):
     def __init__(
-        self,
-        sample_rate,
-        max_sample_size=None,
-        min_sample_size=None,
-        shuffle=True,
-        min_length=0,
-        pad=False,
-        normalize=False,
+            self,
+            sample_rate=16_000,
+            max_sample_size=None,
+            min_sample_size=None,
+            min_length=0,
+            shuffle=True,
+            pad=True,
+            normalize=False,
     ):
         super().__init__()
 
@@ -39,8 +39,8 @@ class RawAudioDataset(FairseqDataset):
         )
         self.min_sample_size = min_sample_size
         self.min_length = min_length
-        self.pad = pad
         self.shuffle = shuffle
+        self.pad = pad
         self.normalize = normalize
 
     def __getitem__(self, index):
@@ -54,7 +54,7 @@ class RawAudioDataset(FairseqDataset):
             feats = feats.mean(-1)
 
         if curr_sample_rate != self.sample_rate:
-            raise Exception(f"sample rate: {curr_sample_rate}, need {self.sample_rate}")
+            raise Exception(f"Sample rate: {curr_sample_rate}, need {self.sample_rate}")
 
         assert feats.dim() == 1, feats.dim()
 
@@ -135,17 +135,19 @@ class RawAudioDataset(FairseqDataset):
         return np.lexsort(order)[::-1]
 
 
-class FileAudioDataset(RawAudioDataset):
+class FileMalayAudioDataset(MalayAudioDataset):
     def __init__(
-        self,
-        manifest_path,
-        sample_rate,
-        max_sample_size=None,
-        min_sample_size=None,
-        shuffle=True,
-        min_length=0,
-        pad=False,
-        normalize=False,
+            self,
+            annotation_file,
+            audio_dir,
+            aug_dir=None,
+            sample_rate=16_000,
+            max_sample_size=None,
+            min_sample_size=None,
+            shuffle=True,
+            min_length=0,
+            pad=False,
+            normalize=False,
     ):
         super().__init__(
             sample_rate=sample_rate,
@@ -156,28 +158,45 @@ class FileAudioDataset(RawAudioDataset):
             pad=pad,
             normalize=normalize,
         )
+        self.annotations = pd.read_csv(annotation_file)
+        self.audio_dir = audio_dir
+        self.aug_dir = aug_dir
 
-        self.fnames = []
-
-        skipped = 0
-        with open(manifest_path, "r") as f:
-            self.root_dir = f.readline().strip()
-            for line in f:
-                items = line.strip().split("\t")
-                assert len(items) == 2, line
-                sz = int(items[1])
-                if min_length is not None and sz < min_length:
-                    skipped += 1
-                    continue
-                self.fnames.append(items[0])
-                self.sizes.append(sz)
-        logger.info(f"loaded {len(self.fnames)}, skipped {skipped} samples")
+    def __len__(self):
+        return len(self.annotations)
 
     def __getitem__(self, index):
         import soundfile as sf
 
-        fname = os.path.join(self.root_dir, self.fnames[index])
-        wav, curr_sample_rate = sf.read(fname)
-        feats = torch.from_numpy(wav).float()
-        feats = self.postprocess(feats, curr_sample_rate)
-        return {"id": index, "source": feats}
+        audio_file, audio_sample_path = self._get_audio_sample_path(index)
+        transcript = self._get_audio_sample_transcript(index)
+        wav, curr_sample_rate = sf.read(audio_sample_path)
+        audio_transformed = wav
+        if self.aug_dir is not None:
+            audio_transformed = self._get_augment_audio(wav)
+            logger.info(f"Augment {audio_file} into {audio_transformed.shape[0]} waves.")
+        return audio_transformed, transcript
+
+    def _get_audio_sample_path(self, index):
+        audio_file = f"{self.annotations.iloc[index, 0]}"
+        path = os.path.join(self.audio_dir, audio_file)
+        return audio_file, path
+
+    def _get_audio_sample_transcript(self, index):
+        return self.annotations.iloc[index, 1].strip()
+
+    def _get_augment_audio(self, audio_sample):
+        transforms = generate_compose_transform(self.aug_dir)
+        compose_transform = ComposeTransform(transforms)
+        transformed_audio = compose_transform(audio_sample)
+        return torch.from_numpy(np.fromiter(transformed_audio, dtype=np.float32))
+
+
+if __name__ == "__main__":
+    AUDIO_PATH = "D:\Projects\mock_project\wav2vec2-malay\\tests\\waves"
+    ANNOTATION_PATH = "D:\Projects\mock_project\wav2vec2-malay\\tests\\annotations.csv"
+    AUG_DIR = "D:\Projects\mock_project\wav2vec2-malay\\tests\\aug_dir"
+    malay_data = FileMalayAudioDataset(ANNOTATION_PATH, AUDIO_PATH, AUG_DIR)
+    print(f"There are {len(malay_data)} samples in the datasets")
+
+    a = 1
