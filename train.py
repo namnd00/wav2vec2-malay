@@ -277,39 +277,6 @@ def get_resampler(sampling_rate):
         return resampler[sampling_rate]
 
 
-def speech_augment(batch):
-    speech_array, sampling_rate = torchaudio.load(batch["path"])
-    speech_array = get_resampler(sampling_rate)(speech_array).squeeze().numpy()
-    batch["sampling_rate"] = 16_000
-    batch["target_text"] = batch["text"]
-    batch["duration"] = len(speech_array.squeeze()) / sampling_rate
-
-    def random_pitch_shift():
-        return np.random.randint(-400, +400)
-
-    def random_room_size():
-        return np.random.randint(0, 101)
-
-    def noise_generator():
-        return torch.zeros_like(speech_array).uniform_()
-
-    combination = augment.EffectChain() \
-        .pitch("-q", random_pitch_shift).rate(sampling_rate) \
-        .reverb(50, 50, random_room_size).channels(1) \
-        .additive_noise(noise_generator, snr=15) \
-        .time_dropout(max_seconds=1.0)
-
-    trans_speech = combination.apply(speech_array,
-                                     src_info={'rate': sampling_rate},
-                                     target_info={'rate': 16_000})
-    batch['speech'] = trans_speech
-    return batch
-
-
-def get_noise_speech(noise_path=None):
-    pass
-
-
 # Preprocessing the datasets.
 # We need to read the audio files as arrays and tokenize the targets.
 def speech_file_to_array_fn(batch):
