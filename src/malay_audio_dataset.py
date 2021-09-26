@@ -14,7 +14,8 @@ import pandas as pd
 import torch
 import torchaudio
 from torchaudio_augmentations import *
-from torch.utils.data import Dataset, DataLoader
+from torch.utils.data import Dataset
+from dataloader import AudioDataLoader
 
 logger = logging.getLogger(__name__)
 
@@ -100,7 +101,8 @@ def parse_args():
     args = argparse.ArgumentParser(description="Data loader for audio")
     args.add_argument("--audio_path", type=str, required=True, help="Path to directory which contains audio")
     args.add_argument("--annotation_path", type=str, required=True, help="Path to csv annotation")
-    args.add_argument("--num_augmented_samples", type=int, default=16, required=True, help="Number of augmented samples")
+    args.add_argument("--num_augmented_samples", type=int, default=16, required=True,
+                      help="Number of augmented samples")
     args.add_argument("--num_workers", type=int, default=1, required=True, help="Number of workers")
 
     return args.parse_args()
@@ -112,6 +114,8 @@ if __name__ == "__main__":
     ANNOTATION_PATH = args.annotation_path
     num_augmented_samples = args.num_augmented_samples
     num_workers = args.num_workers
+    # AUDIO_PATH = "D:\Projects\mock_project\wav2vec2-malay\\tests\waves"
+    # ANNOTATION_PATH = "D:\Projects\mock_project\wav2vec2-malay\\tests\\annotations.csv"
 
     if torch.cuda.is_available():
         device = "cuda"
@@ -121,14 +125,14 @@ if __name__ == "__main__":
 
     malay_data = MalayAudioDataset(audio_dir=AUDIO_PATH,
                                    annotation_file=ANNOTATION_PATH,
+                                   have_transforms=True,
                                    num_augmented_samples=num_augmented_samples)
-    loader = DataLoader(dataset=malay_data,
-                        batch_size=8,
-                        num_workers=num_workers,
-                        collate_fn=collate_fn)
+    loader = AudioDataLoader(dataset=malay_data,
+                             batch_size=8,
+                             num_workers=num_workers,
+                             collate_fn=collate_fn)
 
     print(f"There are {len(malay_data)} samples in the datasets")
-    print(len(loader))
     for batch, label in loader:
         print(type(batch))
         print(type(batch[0]))

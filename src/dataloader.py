@@ -22,17 +22,13 @@ def default_collate(batch):
         return tuple(default_collate(var) for var in zip(*batch))
 
 
-class BaseDataLoader(DataLoader):
+class BaseDataLoader:
     def __init__(
             self,
             dataset,
             batch_size=64,
             collate_fn=default_collate
     ):
-        super().__init__(
-            dataset=dataset,
-            batch_size=batch_size
-        )
         self.index = 0
         self.dataset = dataset
         self.batch_size = batch_size
