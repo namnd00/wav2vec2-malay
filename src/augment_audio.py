@@ -70,8 +70,6 @@ def get_transforms(aug_dir):
         LowPassFilter(p=1.0),
         PitchShift(min_semitones=-4, max_semitones=4, p=1.0),
         LoudnessNormalization(p=1.0),
-        Mp3Compression(backend="lameenc", p=1.0),
-        Mp3Compression(backend="pydub", p=1.0),
         Normalize(p=1.0),
         PolarityInversion(p=1.0),
         Resample(p=1.0),

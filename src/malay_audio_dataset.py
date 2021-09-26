@@ -9,17 +9,11 @@ Desc:
 import os
 import logging
 
-import numpy as np
 import pandas as pd
-import soundfile
 import torch
 import torchaudio
-from torchvision import transforms
-from audiomentations.core.audio_loading_utils import load_sound_file
+from torchaudio_augmentations import *
 from torch.utils.data import Dataset, DataLoader
-from tqdm import tqdm
-
-from augment_audio import get_transforms
 
 logger = logging.getLogger(__name__)
 
@@ -30,19 +24,22 @@ class MalayAudioDataset(Dataset):
             annotation_file,
             audio_dir,
             sample_rate=16_000,
-            transforms=None,
-            device="cpu"
+            num_augmented_samples=16,
+            have_transforms=True,
+            device="cuda"
     ):
         super().__init__()
         self.annotations = pd.read_csv(annotation_file)
         self.audio_dir = audio_dir
         self.sample_rate = sample_rate
-        self.target_sample_rate = 16_000
         self.device = device
-        self.transforms = transforms
+        self.have_transforms = have_transforms
+        if self.have_transforms:
+            self.transforms = self._get_audio_transforms()
+        self.num_augmented_samples = num_augmented_samples
 
     def __len__(self):
-        if self.transforms is not None:
+        if self.have_transforms:
             return len(self.transforms) * len(self.annotations)
         else:
             return len(self.annotations)
@@ -50,14 +47,13 @@ class MalayAudioDataset(Dataset):
     def __getitem__(self, index):
         audio_sample_path = self._get_audio_sample_path(index)
         transcript = self._get_audio_sample_transcript(index)
-        signal, sr = load_sound_file(audio_sample_path, sample_rate=self.sample_rate)
+        signal, sr = torchaudio.load(audio_sample_path)
         signal = self._resample_if_necessary(signal, sr)
-        print("Before: ", signal.shape)
-        if self.transforms is not None:
-            for aug in self.transforms:
-                aug_signal = aug(signal, self.target_sample_rate)
-                signal = np.vstack((signal, aug_signal))
-        print("After: ", signal.shape)
+        if self.have_transforms:
+            transform_many = compose.ComposeMany(transforms=self.transforms,
+                                                 num_augmented_samples=self.num_augmented_samples)
+            signal = transform_many(signal)
+
         signal = torch.from_numpy(signal)
         signal = signal.to(self.device)
         return signal, transcript
@@ -79,6 +75,22 @@ class MalayAudioDataset(Dataset):
     # def _filter_by_duration(self, index):
     #     return 1 <= self.annotations.iloc[index, 2] <= 30
 
+    def _get_audio_transforms(self):
+        num_samples = self.sample_rate * 5
+        return [
+            RandomResizedCrop(n_samples=num_samples),
+            RandomApply([PolarityInversion()], p=0.8),
+            RandomApply([Noise(min_snr=0.1, max_snr=0.5)], p=0.3),
+            RandomApply([Gain()], p=0.3),
+            HighLowPass(sample_rate=self.sample_rate),
+            RandomApply([PitchShift(
+                n_samples=num_samples,
+                sample_rate=self.sample_rate
+            )], p=0.4),
+            RandomApply([Delay(sample_rate=self.sample_rate)], p=0.5),
+            RandomApply([Reverb(sample_rate=self.sample_rate)], p=0.3)
+        ]
+
 
 def collate_fn(batch):
     return tuple(zip(*batch))
@@ -95,10 +107,13 @@ if __name__ == "__main__":
         device = "cpu"
     print(f"Using device {device}")
 
-    class_transforms = get_transforms(aug_dir=AUG_DIR)
-
-    malay_data = MalayAudioDataset(audio_dir=AUDIO_PATH, annotation_file=ANNOTATION_PATH, transforms=class_transforms)
-    loader = DataLoader(dataset=malay_data, batch_size=4, num_workers=2, collate_fn=collate_fn)
+    malay_data = MalayAudioDataset(audio_dir=AUDIO_PATH,
+                                   annotation_file=ANNOTATION_PATH,
+                                   num_augmented_samples=16)
+    loader = DataLoader(dataset=malay_data,
+                        batch_size=8,
+                        num_workers=2,
+                        collate_fn=collate_fn)
 
     print(f"There are {len(malay_data)} samples in the datasets")
     print(len(loader))
