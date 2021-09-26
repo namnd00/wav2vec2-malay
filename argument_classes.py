@@ -105,7 +105,7 @@ class DataTrainingArguments:
         default=None,
         metadata={
             "help": "The name of the training data set split to use (via the datasets library). Defaults to "
-                    "'submission_2.csv' "
+                    "'submission.csv' "
         },
     )
     overwrite_cache: bool = field(
@@ -124,10 +124,18 @@ class DataTrainingArguments:
         default=8, metadata={"help": "Batch size per GPU/TPU core/CPU for testing."}
     )
     data_augment: bool = field(
-        default=False,
+        default=True,
         metadata={"help": "Augment speech data or not"}
     )
-    ratio_dataset: float = field(
-        default=0.8,
-        metadata={'help': "ratio data"}
+    audio_dir: Optional[str] = field(
+        default="waves",
+        metadata={'help': "path to audio directory"}
+    )
+    num_augmented_samples: int = field(
+        default=8,
+        metadata={"help": "Number of augmented samples"}
+    )
+    num_workers: int = field(
+        default=2,
+        metadata={"help": "Number of workers"}
     )

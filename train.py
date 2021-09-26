@@ -13,6 +13,10 @@ import torchaudio
 import json
 import os
 import sys
+
+from torch.utils.data import DataLoader
+from tqdm import tqdm
+
 import datasets
 import numpy as np
 import torch
@@ -24,6 +28,8 @@ import wandb
 
 from inspect import getframeinfo, stack
 from unidecode import unidecode
+
+from callbacks import LossNaNStoppingCallback, TimingCallback
 from datasets import Dataset
 from pathlib import Path
 from dataclasses import dataclass
@@ -46,6 +52,13 @@ from transformers import (
 )
 
 from argument_classes import ModelArguments, DataTrainingArguments
+from preprocessing_dataset import split_dataset, create_tokenizer, remove_special_characters, prepare_dataset, \
+    speech_file_to_array_fn
+from src.audio_dataloader import MalayAudioDataset, collate_fn
+from utils import Timer
+
+logger = logging.getLogger(__name__)
+log_timestamp = Timer()
 
 if is_apex_available():
     from apex import amp
@@ -182,144 +195,7 @@ class CTCTrainer(Trainer):
         return loss.detach()
 
 
-class Timer:
-    """
-    Measure time elapsed since start and since last measurement.
-    """
-
-    def __init__(self):
-        self.start = self.last = time.perf_counter()
-
-    def __call__(self, msg=None):
-        t = time.perf_counter()
-        timestamp = t - self.start
-        duration = t - self.last
-        self.last = t
-        if msg is None:
-            caller = getframeinfo(stack()[1][0])
-            msg = f"line {caller.lineno}"
-        wandb.log({f"timestamps/{msg}": timestamp})
-        wandb.log({f"durations/{msg}": duration})
-        logger.info(
-            f"*** TIMER *** - {msg} - Timestamp {timestamp:0.4f} seconds - Duration {duration:0.4f} seconds"
-        )
-
-
-class LossNaNStoppingCallback(TrainerCallback):
-    """
-    Stops training when loss is NaN.
-
-    Loss is accessed through last logged values so it is useful to set
-    :class:`~transformers.TrainingArguments` argument `logging_steps` to 1.
-    """
-
-    def __init__(self):
-        self.stopped = False
-
-    def on_log(self, args, state, control, logs=None, **kwargs):
-        if np.isnan(logs.get("loss", 0.0)):
-            self.stopped = True
-            control.should_training_stop = True
-            logger.info("Loss NaN detected, terminating training")
-
-
-class TimingCallback(TrainerCallback):
-    """
-    Logs some interesting timestamps.
-    """
-
-    def __init__(self):
-        self.training_started = False
-        self.evaluation_started = False
-
-    def on_step_begin(self, args, state, control, **kwargs):
-        if not self.training_started:
-            log_timestamp("trainer ready to start 1st step")
-
-    def on_step_end(self, args, state, control, **kwargs):
-        if not self.training_started:
-            self.training_started = True
-            log_timestamp("first training step")
-
-
-logger = logging.getLogger(__name__)
-log_timestamp = Timer()
-
-
-def remove_special_characters(batch, chars_to_ignore_regex, train=True):
-    batch["text"] = (
-        re.sub(chars_to_ignore_regex, "", unidecode(batch["transcript"]))
-            .lower()
-            .strip()
-    )
-    if train:
-        batch["text"] += " "
-    return batch
-
-
-def extract_all_chars(batch):
-    all_text = " ".join(batch["text"])
-    vocab = list(set(all_text))
-    return {"vocab": [vocab], "all_text": [all_text]}
-
-
-resampler = dict()
-
-
-def get_resampler(sampling_rate):
-    if sampling_rate in resampler.keys():
-        return resampler[sampling_rate]
-    else:
-        logger.info(f"Creating new resampler for {sampling_rate}")
-        resampler[sampling_rate] = torchaudio.transforms.Resample(
-            sampling_rate, 16_000
-        )
-        return resampler[sampling_rate]
-
-
-# Preprocessing the datasets.
-# We need to read the audio files as arrays and tokenize the targets.
-def speech_file_to_array_fn(batch):
-    speech_array, sampling_rate = torchaudio.load(batch["path"])
-    batch["speech"] = get_resampler(sampling_rate)(speech_array).squeeze().numpy()
-    batch["sampling_rate"] = 16_000
-    batch["target_text"] = batch["text"]
-    batch["duration"] = len(speech_array.squeeze()) / sampling_rate
-    return batch
-
-
-def filter_by_duration(batch):
-    return (
-            20 >= batch["duration"] >= 1
-            and len(batch["target_text"]) > 1
-    )  # about 98% of samples
-
-
-def prepare_dataset(batch, processor):
-    # check that all files have the correct sampling rate
-    assert (
-            len(set(batch["sampling_rate"])) == 1
-    ), f"Make sure all inputs have the same sampling rate of {processor.feature_extractor.sampling_rate}."
-    batch["input_values"] = processor(
-        batch["speech"], sampling_rate=batch["sampling_rate"][0]
-    ).input_values
-    # Setup the processor for targets
-    with processor.as_target_processor():
-        batch["labels"] = processor(batch["target_text"]).input_ids
-    return batch
-
-
-def get_length(item):
-    # speeds up grouping by length in pre-loaded dataset
-    item["length"] = len(item["input_values"])
-    return item
-
-
-def main():
-    # See all possible arguments in src/transformers/training_args.py
-    # or by passing the --help flag to this script.
-    # We now keep distinct sets of args, for a cleaner separation of concerns.
-
+def get_parser():
     parser = HfArgumentParser(
         (ModelArguments, DataTrainingArguments, TrainingArguments)
     )
@@ -332,10 +208,10 @@ def main():
     else:
         model_args, data_args, training_args = parser.parse_args_into_dataclasses()
 
-    # override default run name and log all args
-    wandb.init(project="wav2vec2-malay", config=wandb.config)
+    return model_args, data_args, training_args
 
-    # Detecting last checkpoint.
+
+def detect_and_get_last_checkpoint(training_args):
     last_checkpoint = None
     if (
             os.path.isdir(training_args.output_dir)
@@ -353,12 +229,30 @@ def main():
                 f"Checkpoint detected, resuming training at {last_checkpoint}. To avoid this behavior, change "
                 "the `--output_dir` or add `--overwrite_output_dir` to train from scratch."
             )
+    return last_checkpoint
+
+
+def main():
+    # get args
+    model_args, data_args, training_args = get_parser()
+    # CONSTANTS
+    CHARS_TO_IGNORE = f'[{"".join(data_args.chars_to_ignore)}]'
+    VOCAB_PATH = f"{data_args.dataset_config_name}/vocab.json"
+
+    # override default run name and log all args
+    wandb.init(project="wav2vec2-malay", config=wandb.config)
+
+    # Detecting last checkpoint.
+    last_checkpoint = detect_and_get_last_checkpoint(training_args)
 
     # Setup logging
-    logging.basicConfig(format="%(asctime)s - %(levelname)s - %(name)s - %(message)s",
-                        datefmt="%m/%d/%Y %H:%M:%S",
-                        handlers=[logging.StreamHandler(sys.stdout)]
-                        )
+    format_basic_config = "%(asctime)s - %(levelname)s - %(name)s - %(message)s"
+    datefmt_basic_config = "%m/%d/%Y %H:%M:%S"
+    handlers_basic_config = [logging.StreamHandler(sys.stdout)]
+    logging.basicConfig(filename="basic_config.json",
+                        format=format_basic_config,
+                        datefmt=datefmt_basic_config,
+                        handlers=handlers_basic_config)
     logger.setLevel(
         logging.INFO if is_main_process(training_args.local_rank) else logging.WARN
     )
@@ -368,6 +262,7 @@ def main():
         f"Process rank: {training_args.local_rank}, device: {training_args.device}, n_gpu: {training_args.n_gpu}"
         + f"distributed training: {bool(training_args.local_rank != -1)}, 16-bits training: {training_args.fp16}"
     )
+
     # Set the verbosity to info of the Transformers logger (on main process only):
     if is_main_process(training_args.local_rank):
         transformers.utils.logging.set_verbosity_info()
@@ -376,105 +271,48 @@ def main():
     # Set seed before initializing model.
     set_seed(training_args.seed)
 
-    chars_to_ignore_regex = f'[{"".join(data_args.chars_to_ignore)}]'
+    if not Path(data_args.train_split_name).exists():
+        logger.error("Must import dataset")
 
-    # Pre-processed datasets
-    # dataset_path = Path(os.getenv("HF_HOME", ".")) / "datasets"
-    # train: datasets/train
-    # eval: datasets/eval
-    # test: datasets/test
-    # vocab: datasets/vocab.json
-    dataset_train_path = f"{data_args.dataset_config_name}/train"
-    dataset_eval_path = f"{data_args.dataset_config_name}/eval"
-    dataset_test_path = f"{data_args.dataset_config_name}/test"
+    annotation_df = pd.read_csv(data_args.train_split_name, encoding='utf-8')
+    dataset_train_path, dataset_eval_path, dataset_test_path = split_dataset(data_args, annotation_df)
 
-    vocab_path = f"{data_args.dataset_config_name}/vocab.json"
+    train_dataset = MalayAudioDataset(annotation_file=dataset_train_path,
+                                           audio_dir=data_args.audio_dir,
+                                           sample_rate=16000,
+                                           num_augmented_samples=data_args.num_augmented_samples,
+                                           have_transforms=True,
+                                           device=training_args.device)
 
-    train_csv = None
-    eval_csv = None
-    test_csv = None
+    log_timestamp("Generate dataset")
+
+    n_samples = len(annotation_df)
+    n_train = len(train_dataset)
+    n_eval = n_test = (n_samples - n_train) / 2
+    logger.info(f"- Train size: {n_train} "
+                f"- Val size: {n_eval} "
+                f"- Test size: {n_test}")
+    logger.info(f"Split data to train/val/test->"
+                f"{n_train / n_samples * 100:02}"
+                f"/{n_eval / n_samples * 100:02}"
+                f"/{n_test / n_samples * 100:02}")
+
     eval_dataset = None
-
-    if Path(data_args.train_split_name).exists():
-        sub_df = pd.read_csv(data_args.train_split_name, encoding='utf-8')
-        # if data_args.ratio_dataset:
-        #    sub_df = sub_df[np.random.rand(len(sub_df)) <= data_args.ratio_dataset]
-        msk = np.random.rand(len(sub_df)) <= data_args.train_test_split_ratio
-        train_csv = sub_df[msk]
-        msk_train = np.random.rand(len(train_csv)) <= data_args.train_test_split_ratio
-        temp_train_csv = train_csv[msk_train]
-        eval_csv = train_csv[~msk_train]
-        test_csv = sub_df[~msk]
-        train_csv.to_csv(f'{data_args.dataset_config_name}/train.csv')
-        eval_csv.to_csv(f'{data_args.dataset_config_name}/eval.csv')
-        test_csv.to_csv(f'{data_args.dataset_config_name}/test.csv')
-        logger.info(f"Train size: {len(train_csv)} - Val size: {len(eval_csv)} - Test size: {len(test_csv)}")
-        logger.info(f"split data to train/test->"
-                    f"{data_args.train_test_split_ratio}/{1 - data_args.train_test_split_ratio}")
-
-    if Path(dataset_train_path).exists() and Path(vocab_path).exists():
-        train_dataset = datasets.load_from_disk(dataset_train_path)
-        log_timestamp("load pre-processed data")
-    else:
-        train_dataset = Dataset.from_pandas(train_csv)
-        log_timestamp("load train data")
-        train_dataset = train_dataset.map(
-            lambda x: remove_special_characters(x, chars_to_ignore_regex, train=False),
-            remove_columns=["transcript"]
-        )
-        log_timestamp("remove special characters")
-
     if training_args.do_eval:
-        if Path(dataset_eval_path).exists():
-            eval_dataset = datasets.load_from_disk(dataset_eval_path)
-            log_timestamp("load pre-processed data")
-        else:
-            eval_dataset = Dataset.from_pandas(eval_csv)
-            log_timestamp("load val data")
-            eval_dataset = eval_dataset.map(
-                lambda x: remove_special_characters(x, chars_to_ignore_regex, train=False),
-                remove_columns=["transcript"]
-            )
-            log_timestamp("remove special characters")
+        eval_dataset = Dataset.from_pandas(dataset_eval_path)
+        log_timestamp("load val data")
+        eval_dataset = eval_dataset.map(
+            lambda x: remove_special_characters(x, CHARS_TO_IGNORE, train=False),
+            num_proc=data_args.preprocessing_num_workers
+        )
+        log_timestamp("Eval: remove special characters")
 
-    if Path(dataset_test_path).exists() and Path(vocab_path).exists():
-        test_dataset = datasets.load_from_disk(dataset_test_path)
-        log_timestamp("load pre-processed data")
-    else:
-        test_dataset = Dataset.from_pandas(test_csv)
-        log_timestamp("load test data")
-        test_dataset = test_dataset.map(
-            lambda x: remove_special_characters(x, chars_to_ignore_regex, train=False),
-            remove_columns=["transcript"],
+        eval_dataset = eval_dataset.map(
+            speech_file_to_array_fn,
+            remove_columns=eval_dataset.column_names,
+            num_proc=data_args.preprocessing_num_workers,
         )
-        log_timestamp("remove special characters")
-
-    if not Path(vocab_path).exists():
-        # create vocab
-        vocab_train = train_dataset.map(
-            extract_all_chars,
-            batched=True,
-            batch_size=-1,
-            keep_in_memory=True,
-            remove_columns=train_dataset.column_names,
-        )
-        vocab_test = test_dataset.map(
-            extract_all_chars,
-            batched=True,
-            batch_size=-1,
-            keep_in_memory=True,
-            remove_columns=test_dataset.column_names,
-        )
-        vocab_list = list(set(vocab_train["vocab"][0]) | set(vocab_test["vocab"][0]))
-        vocab_dict = {v: k for k, v in enumerate(vocab_list)}
-        vocab_dict["|"] = vocab_dict[" "]
-        del vocab_dict[" "]
-        vocab_dict["[UNK]"] = len(vocab_dict)
-        vocab_dict["[PAD]"] = len(vocab_dict)
-        Path(vocab_path).parent.mkdir(parents=True, exist_ok=True)
-        with open(vocab_path, "w") as vocab_file:
-            json.dump(vocab_dict, vocab_file)
-        log_timestamp("create vocab")
+        log_timestamp("Eval: speech to array")
 
     # Load pretrained model and tokenizer
     #
@@ -482,7 +320,7 @@ def main():
     # The .from_pretrained methods guarantee that only one local process can concurrently
     # download model & vocab.
     tokenizer = Wav2Vec2CTCTokenizer(
-        vocab_path,
+        VOCAB_PATH,
         unk_token="[UNK]",
         pad_token="[PAD]",
         word_delimiter_token="|",
@@ -511,96 +349,15 @@ def main():
         pad_token_id=processor.tokenizer.pad_token_id,
         vocab_size=len(processor.tokenizer),
     )
+    if model_args.freeze_feature_extractor:
+        model.freeze_feature_extractor()
+        log_timestamp("freeze feature extractor")
+
     log_timestamp("load model")
 
-    if not Path(dataset_train_path).exists():
-        if data_args.data_augment:
-            train_dataset = train_dataset.map(
-                speech_augment,
-                remove_columns=train_dataset.column_names,
-                num_proc=data_args.preprocessing_num_workers,
-            )
-            log_timestamp("augment audio")
-        else:
-            train_dataset = train_dataset.map(
-                speech_file_to_array_fn,
-                remove_columns=train_dataset.column_names,
-                num_proc=data_args.preprocessing_num_workers,
-            )
-            log_timestamp("load audio")
-        train_dataset = train_dataset.filter(
-            filter_by_duration,
-            remove_columns=["duration"],
-            num_proc=data_args.preprocessing_num_workers,
-        )
-        log_timestamp("filter data")
-        train_dataset = train_dataset.map(
-            lambda x: prepare_dataset(x, processor),
-            remove_columns=train_dataset.column_names,
-            batch_size=training_args.per_device_train_batch_size,
-            batched=True,
-            num_proc=data_args.preprocessing_num_workers,
-        )
-        log_timestamp("process data")
-        train_dataset = train_dataset.map(
-            get_length,
-            num_proc=data_args.preprocessing_num_workers,
-        )
-        log_timestamp("add input length")
-        train_dataset.save_to_disk(dataset_train_path)
-        log_timestamp("save to disk")
-
-    if not Path(dataset_eval_path).exists() and training_args.do_eval:
-        if data_args.data_augment:
-            eval_dataset = eval_dataset.map(
-                speech_augment,
-                remove_columns=train_dataset.column_names,
-                num_proc=data_args.preprocessing_num_workers,
-            )
-            log_timestamp("augment audio")
-        else:
-            eval_dataset = eval_dataset.map(
-                speech_file_to_array_fn,
-                remove_columns=eval_dataset.column_names,
-                num_proc=data_args.preprocessing_num_workers,
-            )
-            log_timestamp("load audio")
-        eval_dataset = eval_dataset.filter(
-            filter_by_duration,
-            remove_columns=["duration"],
-            num_proc=data_args.preprocessing_num_workers,
-        )
-        log_timestamp("filter data")
-        eval_dataset = eval_dataset.map(
-            lambda x: prepare_dataset(x, processor),
-            remove_columns=eval_dataset.column_names,
-            batch_size=training_args.per_device_eval_batch_size,
-            batched=True,
-            num_proc=data_args.preprocessing_num_workers,
-        )
-        log_timestamp("process data")
-        eval_dataset = eval_dataset.map(
-            get_length,
-            num_proc=data_args.preprocessing_num_workers,
-        )
-        log_timestamp("add input length")
-        eval_dataset.save_to_disk(dataset_eval_path)
-        log_timestamp("save to disk")
-
-    if not Path(dataset_test_path).exists():
-        test_dataset = test_dataset.map(
-            speech_file_to_array_fn,
-            num_proc=data_args.preprocessing_num_workers,
-        )
-        test_dataset = test_dataset.filter(
-            filter_by_duration, remove_columns=["duration"]
-        )
-        test_dataset.save_to_disk(dataset_test_path)
-
-    # Metric
-    cer_metric = datasets.load_metric("cer")
-    # we use a custom WER that considers punctuation
-    wer_metric = datasets.load_metric("wer")
+    # Data collator
+    data_collator = DataCollatorCTCWithPadding(processor=processor, padding=True)
+    log_timestamp("create data collator")
 
     def compute_metrics(pred):
         pred_logits = pred.predictions
@@ -616,15 +373,6 @@ def main():
         wer = wer_metric.compute(predictions=pred_str, references=label_str)
 
         return {"cer": cer, "wer": wer}
-
-    if model_args.freeze_feature_extractor:
-        model.freeze_feature_extractor()
-        log_timestamp("freeze feature extractor")
-
-    # Data collator
-    data_collator = DataCollatorCTCWithPadding(processor=processor, padding=True)
-    log_timestamp("create data collator")
-
     # Initialize our Trainer
     trainer = Trainer(
         model=model,
@@ -639,38 +387,88 @@ def main():
     timing_callback = TimingCallback()
     trainer.add_callback(loss_nan_stopping_callback)
     trainer.add_callback(timing_callback)
+    log_timestamp("setup trainer")
 
     # Training
-    log_timestamp("setup trainer")
-    if training_args.do_train:
-        if last_checkpoint is not None:
-            checkpoint = last_checkpoint
-        elif os.path.isdir(model_args.model_name_or_path):
-            checkpoint = model_args.model_name_or_path
-        else:
-            checkpoint = None
+    train_dataloader = trainer.get_train_dataloader()
+    # train_dataloader = DataLoader(dataset=train_dataset,
+    #                               batch_size=training_args.per_device_train_batch_size,
+    #                               num_workers=data_args.num_workers,
+    #                               collate_fn=collate_fn,
+    #                               shuffle=True)
 
-        train_result = trainer.train(resume_from_checkpoint=checkpoint)
-        log_timestamp("train model")
-        trainer.save_model()
+    log_timestamp("Create train data loader")
 
-        # save the feature_extractor and the tokenizer
-        if is_main_process(training_args.local_rank):
-            processor.save_pretrained(training_args.output_dir)
+    iter_loader = iter(train_dataloader)
+    for _ in tqdm(range(len(train_dataloader))):
+        train_batch = next(iter_loader)
+        log_timestamp("Train: Load audio array, transcripts")
 
-        metrics = train_result.metrics
-        metrics["train_samples"] = len(train_dataset)
+        train_batch = Dataset.from_dict(train_batch)
+        train_batch = train_batch.map(
+            lambda x: remove_special_characters(x, CHARS_TO_IGNORE, train=False)
+        )
+        log_timestamp("Train: remove special characters in transcripts")
 
-        wandb.log({f"train/{k}": v for k, v in metrics.items()})
+        train_batched = train_batch.map(
+            lambda x: prepare_dataset(x, processor),
+            remove_columns=train_batch.column_names,
+            batch_size=training_args.per_device_train_batch_size,
+            batched=True,
+            num_proc=data_args.preprocessing_num_workers,
+        )
+        log_timestamp("Train: prepare speech array")
 
-        trainer.log_metrics("train", metrics)
-        trainer.save_metrics("train", metrics)
-        trainer.save_state()
+        if training_args.do_train:
+            if last_checkpoint is not None:
+                checkpoint = last_checkpoint
+            elif os.path.isdir(model_args.model_name_or_path):
+                checkpoint = model_args.model_name_or_path
+            else:
+                checkpoint = None
+
+            train_result = trainer.train(resume_from_checkpoint=checkpoint)
+            log_timestamp("train model")
+            trainer.save_model()
+
+            # save the feature_extractor and the tokenizer
+            if is_main_process(training_args.local_rank):
+                processor.save_pretrained(training_args.output_dir)
+
+            metrics = train_result.metrics
+            metrics["train_samples"] = len(train_dataset)
+
+            wandb.log({f"train/{k}": v for k, v in metrics.items()})
+
+            trainer.log_metrics("train", metrics)
+            trainer.save_metrics("train", metrics)
+            trainer.save_state()
+
+    # Prepare test dataset
+    test_dataset = Dataset.from_pandas(dataset_test_path)
+    log_timestamp("load test data")
+    test_dataset = test_dataset.map(
+        lambda x: remove_special_characters(x, CHARS_TO_IGNORE, train=False),
+        remove_columns=["transcript"],
+    )
+    log_timestamp("Test: remove special characters")
+
+    test_dataset_dir = f"{data_args.dataset_config_name}/test"
+    if not Path(test_dataset_dir).exists():
+        test_dataset = test_dataset.map(
+            speech_file_to_array_fn,
+            num_proc=data_args.preprocessing_num_workers,
+        )
+        test_dataset.save_to_disk(test_dataset_dir)
+
+    # Metric
+    cer_metric = datasets.load_metric("cer")
+    # we use a custom WER that considers punctuation
+    wer_metric = datasets.load_metric("wer")
 
     # Final test metrics
     logger.info("*** Test ***")
-    log_timestamp()
-
+    result_dict = None
     if loss_nan_stopping_callback.stopped:
         test_cer, test_wer = 1.0, 2.0
         logger.info(
@@ -699,12 +497,17 @@ def main():
         )
         log_timestamp("get test predictions")
         test_cer = cer_metric.compute(
-            predictions=result["pred_strings"], references=result["text"]
+            predictions=result["pred_strings"], references=result["target_text"]
         )
         test_wer = wer_metric.compute(
-            predictions=result["pred_strings"], references=result["text"]
+            predictions=result["pred_strings"], references=result["target_text"]
         )
         log_timestamp("compute test metrics")
+
+        result_dict = {'labels': test_dataset['target_text'], 'predictions': result['pred_strings']}
+    if result_dict is not None:
+        result_df = pd.DataFrame(data=result_dict)
+        result_df.to_csv(f"{data_args.dataset_config_name}/result_df.csv", index=False)
 
     metrics = {"cer": test_cer, "wer": test_wer}
     wandb.log({f"test/{k}": v for k, v in metrics.items()})
@@ -712,7 +515,6 @@ def main():
     logger.info(metrics)
 
     # save model files
-    log_timestamp()
     if not loss_nan_stopping_callback.stopped:
         artifact = wandb.Artifact(
             name=f"model-{wandb.run.id}", type="model", metadata={"cer": test_cer}

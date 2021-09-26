@@ -1,6 +1,6 @@
 # coding:utf-8
 """
-Name : malay_audio_dataset.py
+Name : audio_dataloader.py
 Author : Nam Nguyen
 Contact : nam.nd.d3@gmail.com
 Time    : 9/24/2021 10:16 AM
@@ -22,9 +22,8 @@ from torchaudio_augmentations import (RandomApply,
                                       Delay,
                                       compose)
 from torch.utils.data import Dataset, DataLoader
-from tqdm import tqdm
-
-from dataloader import AudioDataLoader
+from torchaudio_augmentations.augmentations.pitch_shift import PitchShift
+from torchaudio_augmentations.augmentations.reverb import Reverb
 
 logger = logging.getLogger(__name__)
 
@@ -36,7 +35,6 @@ class MalayAudioDataset(Dataset):
             audio_dir,
             sample_rate=16_000,
             num_augmented_samples=16,
-            batch_size=8,
             have_transforms=True,
             device="cuda"
     ):
@@ -46,7 +44,6 @@ class MalayAudioDataset(Dataset):
         self.sample_rate = sample_rate
         self.device = device
         self.have_transforms = have_transforms
-        self.batch_size = batch_size
         if self.have_transforms:
             self.transforms = self._get_audio_transforms()
         self.num_augmented_samples = num_augmented_samples
@@ -67,7 +64,9 @@ class MalayAudioDataset(Dataset):
             signal = transform_many(signal)
 
         # signal = signal.to(self.device)
-        return signal, transcript
+        return {"speech": signal,
+                "sample_rate": self.sample_rate,
+                "text": transcript}
 
     def _get_audio_sample_path(self, index):
         audio_file = f"{self.annotations.iloc[index, 0]}"
@@ -95,12 +94,12 @@ class MalayAudioDataset(Dataset):
             RandomApply([Noise(min_snr=0.1, max_snr=0.5)], p=0.3),
             RandomApply([Gain()], p=0.3),
             HighLowPass(sample_rate=self.sample_rate),
-            # RandomApply([PitchShift(
-            #     n_samples=num_samples,
-            #     sample_rate=self.sample_rate
-            # )], p=0.4),
+            RandomApply([PitchShift(
+                n_samples=num_samples,
+                sample_rate=self.sample_rate
+            )], p=0.4),
             RandomApply([Delay(sample_rate=self.sample_rate)], p=0.5),
-            # RandomApply([Reverb(sample_rate=self.sample_rate)], p=0.3)
+            RandomApply([Reverb(sample_rate=self.sample_rate)], p=0.3)
         ]
 
 
@@ -122,8 +121,8 @@ def parse_args():
     return args.parse_args()
 
 
-if __name__ == "__main__":
-    # args = parse_args()
+def demo():
+    args = parse_args()
     # AUDIO_PATH = args.audio_path
     # ANNOTATION_PATH = args.annotation_path
     # num_augmented_samples = args.num_augmented_samples

@@ -1,6 +1,6 @@
 # coding:utf-8
 """
-Name : malay_audio_dataset.py
+Name : audio_dataloader.py
 Author : Nam Nguyen
 Contact : nam.nd.d3@gmail.com
 Time    : 9/24/2021 10:16 AM
