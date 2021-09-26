@@ -55,8 +55,7 @@ class MalayAudioDataset(Dataset):
                                                  num_augmented_samples=self.num_augmented_samples)
             signal = transform_many(signal)
 
-        signal = torch.from_numpy(signal)
-        signal = signal.to(self.device)
+        # signal = signal.to(self.device)
         return signal, transcript
 
     def _get_audio_sample_path(self, index):
@@ -79,7 +78,7 @@ class MalayAudioDataset(Dataset):
     def _get_audio_transforms(self):
         num_samples = self.sample_rate * 5
         return [
-            RandomResizedCrop(n_samples=num_samples),
+            # RandomResizedCrop(n_samples=num_samples),
             RandomApply([PolarityInversion()], p=0.8),
             RandomApply([Noise(min_snr=0.1, max_snr=0.5)], p=0.3),
             RandomApply([Gain()], p=0.3),
@@ -98,20 +97,21 @@ def collate_fn(batch):
 
 
 def parse_args():
-    args = argparse.ArgumentParser()
-    args.description("Data loader for audio")
+    args = argparse.ArgumentParser(description="Data loader for audio")
     args.add_argument("--audio_path", type=str, required=True, help="Path to directory which contains audio")
     args.add_argument("--annotation_path", type=str, required=True, help="Path to csv annotation")
     args.add_argument("--num_augmented_samples", type=int, default=16, required=True, help="Number of augmented samples")
+    args.add_argument("--num_workers", type=int, default=1, required=True, help="Number of workers")
 
     return args.parse_args()
 
 
 if __name__ == "__main__":
     args = parse_args()
-    AUDIO_PATH = args['audio_path']
-    ANNOTATION_PATH = args['annotation_path']
-    num_augmented_samples = args['num_augmented_samples']
+    AUDIO_PATH = args.audio_path
+    ANNOTATION_PATH = args.annotation_path
+    num_augmented_samples = args.num_augmented_samples
+    num_workers = args.num_workers
 
     if torch.cuda.is_available():
         device = "cuda"
@@ -124,7 +124,7 @@ if __name__ == "__main__":
                                    num_augmented_samples=num_augmented_samples)
     loader = DataLoader(dataset=malay_data,
                         batch_size=8,
-                        num_workers=2,
+                        num_workers=num_workers,
                         collate_fn=collate_fn)
 
     print(f"There are {len(malay_data)} samples in the datasets")
