@@ -8,6 +8,7 @@ Desc:
 """
 import os
 import logging
+import argparse
 
 import pandas as pd
 import torch
@@ -96,10 +97,21 @@ def collate_fn(batch):
     return tuple(zip(*batch))
 
 
+def parse_args():
+    args = argparse.ArgumentParser()
+    args.description("Data loader for audio")
+    args.add_argument("--audio_path", type=str, required=True, help="Path to directory which contains audio")
+    args.add_argument("--annotation_path", type=str, required=True, help="Path to csv annotation")
+    args.add_argument("--num_augmented_samples", type=int, default=16, required=True, help="Number of augmented samples")
+
+    return args.parse_args()
+
+
 if __name__ == "__main__":
-    AUDIO_PATH = "D:\Projects\mock_project\wav2vec2-malay\\tests\\waves"
-    ANNOTATION_PATH = "D:\Projects\mock_project\wav2vec2-malay\\tests\\annotations.csv"
-    AUG_DIR = "D:\Projects\mock_project\wav2vec2-malay\\tests\\aug_dir"
+    args = parse_args()
+    AUDIO_PATH = args['audio_path']
+    ANNOTATION_PATH = args['annotation_path']
+    num_augmented_samples = args['num_augmented_samples']
 
     if torch.cuda.is_available():
         device = "cuda"
@@ -109,7 +121,7 @@ if __name__ == "__main__":
 
     malay_data = MalayAudioDataset(audio_dir=AUDIO_PATH,
                                    annotation_file=ANNOTATION_PATH,
-                                   num_augmented_samples=16)
+                                   num_augmented_samples=num_augmented_samples)
     loader = DataLoader(dataset=malay_data,
                         batch_size=8,
                         num_workers=2,
