@@ -9,12 +9,21 @@ Desc:
 import os
 import logging
 import argparse
+from time import time
 
 import pandas as pd
 import torch
 import torchaudio
-from torchaudio_augmentations import *
-from torch.utils.data import Dataset
+from torchaudio_augmentations import (RandomApply,
+                                      PolarityInversion,
+                                      Noise,
+                                      Gain,
+                                      HighLowPass,
+                                      Delay,
+                                      compose)
+from torch.utils.data import Dataset, DataLoader
+from tqdm import tqdm
+
 from dataloader import AudioDataLoader
 
 logger = logging.getLogger(__name__)
@@ -27,6 +36,7 @@ class MalayAudioDataset(Dataset):
             audio_dir,
             sample_rate=16_000,
             num_augmented_samples=16,
+            batch_size=8,
             have_transforms=True,
             device="cuda"
     ):
@@ -36,17 +46,17 @@ class MalayAudioDataset(Dataset):
         self.sample_rate = sample_rate
         self.device = device
         self.have_transforms = have_transforms
+        self.batch_size = batch_size
         if self.have_transforms:
             self.transforms = self._get_audio_transforms()
         self.num_augmented_samples = num_augmented_samples
 
     def __len__(self):
-        if self.have_transforms:
-            return len(self.transforms) * len(self.annotations)
-        else:
-            return len(self.annotations)
+        return len(self.annotations)
 
     def __getitem__(self, index):
+        if index not in self.annotations.index:
+            return
         audio_sample_path = self._get_audio_sample_path(index)
         transcript = self._get_audio_sample_transcript(index)
         signal, sr = torchaudio.load(audio_sample_path)
@@ -61,6 +71,7 @@ class MalayAudioDataset(Dataset):
 
     def _get_audio_sample_path(self, index):
         audio_file = f"{self.annotations.iloc[index, 0]}"
+        # print(index, audio_file)
         path = os.path.join(self.audio_dir, audio_file)
         return path
 
@@ -84,17 +95,20 @@ class MalayAudioDataset(Dataset):
             RandomApply([Noise(min_snr=0.1, max_snr=0.5)], p=0.3),
             RandomApply([Gain()], p=0.3),
             HighLowPass(sample_rate=self.sample_rate),
-            RandomApply([PitchShift(
-                n_samples=num_samples,
-                sample_rate=self.sample_rate
-            )], p=0.4),
+            # RandomApply([PitchShift(
+            #     n_samples=num_samples,
+            #     sample_rate=self.sample_rate
+            # )], p=0.4),
             RandomApply([Delay(sample_rate=self.sample_rate)], p=0.5),
-            RandomApply([Reverb(sample_rate=self.sample_rate)], p=0.3)
+            # RandomApply([Reverb(sample_rate=self.sample_rate)], p=0.3)
         ]
 
 
 def collate_fn(batch):
-    return tuple(zip(*batch))
+    batched = [elem for elem in batch if elem is not None]
+    if all(batched) is None:
+        return
+    return list(zip(*batched))
 
 
 def parse_args():
@@ -109,13 +123,16 @@ def parse_args():
 
 
 if __name__ == "__main__":
-    args = parse_args()
-    AUDIO_PATH = args.audio_path
-    ANNOTATION_PATH = args.annotation_path
-    num_augmented_samples = args.num_augmented_samples
-    num_workers = args.num_workers
-    # AUDIO_PATH = "D:\Projects\mock_project\wav2vec2-malay\\tests\waves"
-    # ANNOTATION_PATH = "D:\Projects\mock_project\wav2vec2-malay\\tests\\annotations.csv"
+    # args = parse_args()
+    # AUDIO_PATH = args.audio_path
+    # ANNOTATION_PATH = args.annotation_path
+    # num_augmented_samples = args.num_augmented_samples
+    # num_workers = args.num_workers
+    time_begin = time()
+    AUDIO_PATH = "D:\Projects\mock_project\wav2vec2-malay\\tests\waves"
+    ANNOTATION_PATH = "D:\Projects\mock_project\wav2vec2-malay\\tests\\annotations.csv"
+    num_augmented_samples = 16
+    num_workers = 2
 
     if torch.cuda.is_available():
         device = "cuda"
@@ -125,15 +142,21 @@ if __name__ == "__main__":
 
     malay_data = MalayAudioDataset(audio_dir=AUDIO_PATH,
                                    annotation_file=ANNOTATION_PATH,
-                                   have_transforms=True,
-                                   num_augmented_samples=num_augmented_samples)
-    loader = AudioDataLoader(dataset=malay_data,
-                             batch_size=8,
-                             num_workers=num_workers,
-                             collate_fn=collate_fn)
+                                   have_transforms=True)
+    loader = DataLoader(dataset=malay_data,
+                        batch_size=16,
+                        num_workers=num_workers,
+                        collate_fn=collate_fn)
 
     print(f"There are {len(malay_data)} samples in the datasets")
+
+    ix = 0
     for batch, label in loader:
-        print(type(batch))
-        print(type(batch[0]))
+        ix += 1
+        print("=" * 50)
+        print(ix, len(batch), batch[0].shape, len(label))
+        print(label)
+
+    time_end = time()
+    print(f"{time_end - time_begin:02}")
     a = 1
