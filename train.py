@@ -379,7 +379,7 @@ def main():
         data_collator=data_collator,
         args=training_args,
         compute_metrics=compute_metrics,
-        train_dataset=train_dataset if training_args.do_train else None,
+        # train_dataset=train_dataset if training_args.do_train else None,
         eval_dataset=eval_dataset if training_args.do_eval else None,
         tokenizer=processor.feature_extractor,
     )
@@ -390,12 +390,12 @@ def main():
     log_timestamp("setup trainer")
 
     # Training
-    train_dataloader = trainer.get_train_dataloader()
-    # train_dataloader = DataLoader(dataset=train_dataset,
-    #                               batch_size=training_args.per_device_train_batch_size,
-    #                               num_workers=data_args.num_workers,
-    #                               collate_fn=collate_fn,
-    #                               shuffle=True)
+    # train_dataloader = trainer.get_train_dataloader()
+    train_dataloader = DataLoader(dataset=train_dataset,
+                                  batch_size=training_args.per_device_train_batch_size,
+                                  num_workers=data_args.num_workers,
+                                  collate_fn=collate_fn,
+                                  shuffle=True)
 
     log_timestamp("Create train data loader")
 
@@ -418,6 +418,7 @@ def main():
             num_proc=data_args.preprocessing_num_workers,
         )
         log_timestamp("Train: prepare speech array")
+        trainer.train_dataset = train_batched
 
         if training_args.do_train:
             if last_checkpoint is not None:

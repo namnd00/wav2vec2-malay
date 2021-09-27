@@ -9,7 +9,6 @@ Desc:
 import numpy as np
 import multiprocessing
 import queue
-from torch.utils.data import DataLoader
 from itertools import cycle
 
 
