@@ -24,12 +24,6 @@ def remove_special_characters(batch, chars_to_ignore_regex, train=True):
     return batch
 
 
-def extract_all_chars(batch):
-    all_text = " ".join(batch["text"])
-    vocab = list(set(all_text))
-    return {"vocab": [vocab], "all_text": [all_text]}
-
-
 def speech_file_to_array_fn(batch):
     speech, sr = torchaudio.load(batch['path'])
     batch["speech"] = speech
@@ -81,13 +75,3 @@ def split_dataset(data_args, annotation_df):
     test_csv.to_csv(test_path)
 
     return train_path, eval_path, test_path
-
-
-def create_tokenizer(vocab_train, vocab_test):
-    vocab_list = list(set(vocab_train["vocab"][0]) | set(vocab_test["vocab"][0]))
-    vocab_dict = {v: k for k, v in enumerate(vocab_list)}
-    vocab_dict["|"] = vocab_dict[" "]
-    del vocab_dict[" "]
-    vocab_dict["[UNK]"] = len(vocab_dict)
-    vocab_dict["[PAD]"] = len(vocab_dict)
-    return vocab_dict

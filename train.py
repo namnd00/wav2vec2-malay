@@ -278,11 +278,11 @@ def main():
     dataset_train_path, dataset_eval_path, dataset_test_path = split_dataset(data_args, annotation_df)
 
     train_dataset = MalayAudioDataset(annotation_file=dataset_train_path,
-                                           audio_dir=data_args.audio_dir,
-                                           sample_rate=16000,
-                                           num_augmented_samples=data_args.num_augmented_samples,
-                                           have_transforms=True,
-                                           device=training_args.device)
+                                      audio_dir=data_args.audio_dir,
+                                      sample_rate=16000,
+                                      num_augmented_samples=data_args.num_augmented_samples,
+                                      have_transforms=True,
+                                      device=training_args.device)
 
     log_timestamp("Generate dataset")
 
@@ -299,7 +299,8 @@ def main():
 
     eval_dataset = None
     if training_args.do_eval:
-        eval_dataset = Dataset.from_pandas(dataset_eval_path)
+        dataset_eval_df = pd.read_csv(dataset_eval_path)
+        eval_dataset = Dataset.from_pandas(dataset_eval_df)
         log_timestamp("load val data")
         eval_dataset = eval_dataset.map(
             lambda x: remove_special_characters(x, CHARS_TO_IGNORE, train=False),
@@ -373,6 +374,7 @@ def main():
         wer = wer_metric.compute(predictions=pred_str, references=label_str)
 
         return {"cer": cer, "wer": wer}
+
     # Initialize our Trainer
     trainer = Trainer(
         model=model,
