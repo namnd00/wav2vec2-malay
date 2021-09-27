@@ -70,8 +70,8 @@ def split_dataset(data_args, annotation_df):
     eval_path = f'{data_args.dataset_config_name}/eval.csv'
     test_path = f'{data_args.dataset_config_name}/test.csv'
 
-    train_csv.to_csv(train_path)
-    eval_csv.to_csv(eval_path)
-    test_csv.to_csv(test_path)
+    train_csv.to_csv(train_path, index=False)
+    eval_csv.to_csv(eval_path, index=False)
+    test_csv.to_csv(test_path, index=False)
 
     return train_path, eval_path, test_path
