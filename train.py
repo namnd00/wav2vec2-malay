@@ -6,28 +6,19 @@ Contact : nam.nd.d3@gmail.com
 Time    : 9/9/2021 2:27 PM
 Desc:
 """
-import re
-import augment
 import pandas as pd
-import torchaudio
-import json
 import os
 import sys
 
 from torch.utils.data import DataLoader
-from tqdm import tqdm
-
 import datasets
 import numpy as np
 import torch
 import transformers
 
-import time
 import logging
 import wandb
 
-from inspect import getframeinfo, stack
-from unidecode import unidecode
 
 from callbacks import LossNaNStoppingCallback, TimingCallback
 from datasets import Dataset
@@ -399,12 +390,12 @@ def main():
 
     log_timestamp("Create train data loader")
 
-    iter_loader = iter(train_dataloader)
-    for _ in tqdm(range(len(train_dataloader))):
-        train_batch = next(iter_loader)
+    # iter_loader = iter(train_dataloader)
+    for signals, sr, labels in train_dataloader:
+        train_batch_dict = {'speech': signals, 'sampling_rate': sr, 'text': labels}
         log_timestamp("Train: Load audio array, transcripts")
 
-        train_batch = Dataset.from_dict(train_batch)
+        train_batch = Dataset.from_dict(train_batch_dict)
         train_batch = train_batch.map(
             lambda x: remove_special_characters(x, CHARS_TO_IGNORE, train=False)
         )
