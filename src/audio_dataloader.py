@@ -22,8 +22,9 @@ from torchaudio_augmentations import (RandomApply,
                                       Delay,
                                       compose)
 from torch.utils.data import Dataset, DataLoader
-from torchaudio_augmentations.augmentations.pitch_shift import PitchShift
-from torchaudio_augmentations.augmentations.reverb import Reverb
+
+# from torchaudio_augmentations.augmentations.pitch_shift import PitchShift
+# from torchaudio_augmentations.augmentations.reverb import Reverb
 
 logger = logging.getLogger(__name__)
 
@@ -63,10 +64,9 @@ class MalayAudioDataset(Dataset):
                                                  num_augmented_samples=self.num_augmented_samples)
             signal = transform_many(signal)
 
+        signal = signal.squeeze().numpy()
         # signal = signal.to(self.device)
-        return {"speech": signal,
-                "sample_rate": self.sample_rate,
-                "text": transcript}
+        return signal, self.sample_rate, transcript
 
     def _get_audio_sample_path(self, index):
         audio_file = f"{self.annotations.iloc[index, 0]}"
@@ -94,12 +94,12 @@ class MalayAudioDataset(Dataset):
             RandomApply([Noise(min_snr=0.1, max_snr=0.5)], p=0.3),
             RandomApply([Gain()], p=0.3),
             HighLowPass(sample_rate=self.sample_rate),
-            RandomApply([PitchShift(
-                n_samples=num_samples,
-                sample_rate=self.sample_rate
-            )], p=0.4),
+            # RandomApply([PitchShift(
+            #     n_samples=num_samples,
+            #     sample_rate=self.sample_rate
+            # )], p=0.4),
             RandomApply([Delay(sample_rate=self.sample_rate)], p=0.5),
-            RandomApply([Reverb(sample_rate=self.sample_rate)], p=0.3)
+            # RandomApply([Reverb(sample_rate=self.sample_rate)], p=0.3)
         ]
 
 
@@ -159,3 +159,6 @@ def demo():
     time_end = time()
     print(f"{time_end - time_begin:02}")
     a = 1
+
+
+demo()

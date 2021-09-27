@@ -52,7 +52,7 @@ from transformers import (
 )
 
 from argument_classes import ModelArguments, DataTrainingArguments
-from preprocessing_dataset import split_dataset, create_tokenizer, remove_special_characters, prepare_dataset, \
+from preprocessing_dataset import split_dataset, remove_special_characters, prepare_dataset, \
     speech_file_to_array_fn
 from src.audio_dataloader import MalayAudioDataset, collate_fn
 from utils import Timer
@@ -246,13 +246,11 @@ def main():
     last_checkpoint = detect_and_get_last_checkpoint(training_args)
 
     # Setup logging
-    format_basic_config = "%(asctime)s - %(levelname)s - %(name)s - %(message)s"
-    datefmt_basic_config = "%m/%d/%Y %H:%M:%S"
-    handlers_basic_config = [logging.StreamHandler(sys.stdout)]
-    logging.basicConfig(filename="basic_config.json",
-                        format=format_basic_config,
-                        datefmt=datefmt_basic_config,
-                        handlers=handlers_basic_config)
+    logging.basicConfig(
+        format="%(asctime)s - %(levelname)s - %(name)s -   %(message)s",
+        datefmt="%m/%d/%Y %H:%M:%S",
+        handlers=[logging.StreamHandler(sys.stdout)],
+    )
     logger.setLevel(
         logging.INFO if is_main_process(training_args.local_rank) else logging.WARN
     )

@@ -128,7 +128,7 @@ class DataTrainingArguments:
         metadata={"help": "Augment speech data or not"}
     )
     audio_dir: Optional[str] = field(
-        default="waves",
+        default="",
         metadata={'help': "path to audio directory"}
     )
     num_augmented_samples: int = field(
