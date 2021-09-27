@@ -53,8 +53,8 @@ def main():
     # text_dir = "output-text"
     # wav_dir = "output-wav"
 
-    text_lst = os.listdir(text_dir)
-    wav_lst = os.listdir(wav_dir)
+    text_lst = os.listdir(text_dir)[:100]
+    wav_lst = os.listdir(wav_dir)[:100]
 
     count_txt = len(text_lst)
     count_wav = len(wav_lst)
@@ -65,7 +65,8 @@ def main():
     if count_txt == count_wav:
         for i in tqdm(range(count_wav)):
             wav_file = wav_lst[i]
-            txt_file = f"{wav_file}.txt"
+            temp_wav_file = "".join(wav_file.split(".")[:-1])
+            txt_file = f"{temp_wav_file}.txt"
             if wav_file is None:
                 logger.warning(f"{wav_file} not exist.")
                 continue
@@ -78,26 +79,23 @@ def main():
             prefix_ = str(calc_checksum(wav_file))
             dst_txt = f"{text_dir}/{prefix_}.txt"
             dst_wav = f"{wav_dir}/{prefix_}.wav"
-
             if not os.path.exists(src_txt):
                 logger.info("Not exists: ", txt_file)
                 continue
             if os.path.exists(dst_txt) and os.path.exists(dst_wav):
                 logger.info(f"Exist {dst_txt}, {dst_wav}")
                 continue
+
             os.rename(src_txt, dst_txt)
             os.rename(src_wav, dst_wav)
 
             if not os.path.exists(dst_txt):
                 logging.error("Not open file: ", dst_txt)
-            f = open(dst_txt, 'r')
-            try:
+            with open(dst_txt, 'r') as f:
                 lines = " ".join(f.readlines())
                 dst_txt_lst.append(lines)
                 dst_wav_lst.append(f"datasets/{dst_wav}")
                 c += 1
-            finally:
-                f.close()
     else:
         print("Failed")
     print("Total: ", c)
@@ -107,12 +105,12 @@ def main():
 
     sub_df = sub_df.sample(frac=1).reset_index(drop=True)
     total_samples = len(sub_df)
-    logger.info("total number of samples: ", total_samples)
-    df_list = np.vsplit(sub_df, args.n_batch)
+    print("total number of samples: ", total_samples)
+    df_list = np.array_split(sub_df, args.n_batch)
     for ix, df in enumerate(df_list):
         sub_samples = len(df)
-        df.to_csv(f"{args.prefix_batch}{str(ix+1)}.csv", index=False)
-        logger.info(f"df-{str(ix+1)}, number of sub-samples: {sub_samples}")
+        df.to_csv(f"{args.prefix_batch}{str(ix + 1)}.csv", index=False)
+        print(f"df-{str(ix + 1)}, number of sub-samples: {sub_samples}")
 
 
 if __name__ == "__main__":
