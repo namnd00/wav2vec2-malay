@@ -1,0 +1,1 @@
+python refine_data.py --data_csv annotations.csv --n_batch 3 --wav_dir output-wav --text_dir output-text
