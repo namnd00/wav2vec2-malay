@@ -21,9 +21,13 @@
     
     `16k sample rate, at least 90% voice activity, 70 hours.`
     
-  3. https://f000.backblazeb2.com/file/malay-dataset/speech/semisupervised-malay-part3.tar.gz
+  3. https://f000.backblazeb2.com/file/malay-dataset/speech/semisupervised-malay-part2.tar.gz
     
     `16k sample rate, at least 90% voice activity, 59 hours.`
+  - Finally:
+    `!tar xvf semisupervised-malay.tar.gz`
+     `!tar xvf semisupervised-malay-part2.tar.gz`
+      `!tar xvf semisupervised-malay-part2.tar.gz`
   
 ## Prepare datasets
   
@@ -35,6 +39,8 @@
 
   `python split_data --dataset_dir datasets --data_csv datasets/annotations.csv --split_batch True --n_batch 3 --n_split 3 --train_ratio 0.9 --wav_dir datasets/waves --text_dir datasets/texts`
   
+  
+## Connect to wandb and fine tune:
 * make sure you're logged into W&B
 
   `wandb login`
