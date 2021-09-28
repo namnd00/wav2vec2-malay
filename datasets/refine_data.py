@@ -76,7 +76,8 @@ def main():
             src_txt = f"{text_dir}/{txt_file}"
             src_wav = f"{wav_dir}/{wav_file}"
 
-            prefix_ = str(calc_checksum(wav_file))
+            # prefix_ = str(calc_checksum(wav_file))
+            prefix_ = f"fwav_{(i+1):06}"
             dst_txt = f"{text_dir}/{prefix_}.txt"
             dst_wav = f"{wav_dir}/{prefix_}.wav"
             if not os.path.exists(src_txt):
