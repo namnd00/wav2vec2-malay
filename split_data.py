@@ -38,7 +38,7 @@ def parse_args():
                         help="int - number of data to split to train/test or train/eval/test")
     parser.add_argument('--train_ratio',
                         default=0.9,
-                        type=int,
+                        type=float,
                         required=True,
                         help="int - ratio of data to split to train/test or train/eval/test")
     parser.add_argument('--wav_dir',
@@ -124,6 +124,7 @@ def rename_files_and_get_annotations(args):
     assert len(dst_txt_lst) == len(dst_wav_lst)
     sub_df = pd.DataFrame(data={'path': dst_wav_lst, 'transcript': dst_txt_lst})
     sub_df.to_csv(args.data_csv, index=False)
+    return sub_df
 
 
 def split_batch(dataset_dir, sub_df, n_batch, prefix_batch):
@@ -157,11 +158,10 @@ def split_dataset(annotation_df, n_split, train_ratio):
 
 def main():
     args = parse_args()
-    if not Path.exists(args.data_csv):
-        rename_files_and_get_annotations(args)
+    data_csv = rename_files_and_get_annotations(args)
 
     if args.n_split == 3:
-        train_csv, eval_csv, test_csv = split_dataset(args.data_csv, args.n_split, args.train_ratio)
+        train_csv, eval_csv, test_csv = split_dataset(data_csv, args.n_split, args.train_ratio)
         eval_csv.to_csv(f'{args.dataset_dir}/eval.csv', index=False)
         test_csv.to_csv(f'{args.dataset_dir}/test.csv', index=False)
     else:
