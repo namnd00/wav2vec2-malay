@@ -26,8 +26,10 @@
     `16k sample rate, at least 90% voice activity, 59 hours.`
   - Finally:
     `!tar xvf semisupervised-malay.tar.gz`
+   
+    `!tar xvf semisupervised-malay-part2.tar.gz`
+    
      `!tar xvf semisupervised-malay-part2.tar.gz`
-      `!tar xvf semisupervised-malay-part2.tar.gz`
   
 ## Prepare datasets
   
@@ -49,6 +51,6 @@
 
   `wandb sweep sweep.yaml`
 
-* launch an agent against the sweep
+* launch an agent against the sweep, count_number(default=1)
 
   `wandb agent --count count_number my_sweep_id`
