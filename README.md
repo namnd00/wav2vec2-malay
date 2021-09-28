@@ -21,7 +21,7 @@
     
     `16k sample rate, at least 90% voice activity, 70 hours.`
     
-  3. https://f000.backblazeb2.com/file/malay-dataset/speech/semisupervised-malay-part2.tar.gz
+  3. https://f000.backblazeb2.com/file/malay-dataset/speech/semisupervised-malay-part3.tar.gz
     
     `16k sample rate, at least 90% voice activity, 59 hours.`
   - Finally:
@@ -30,7 +30,7 @@
    
     `tar xvf semisupervised-malay-part2.tar.gz`
     
-    `tar xvf semisupervised-malay-part2.tar.gz`
+    `tar xvf semisupervised-malay-part3.tar.gz`
   
 ## Prepare datasets
   
