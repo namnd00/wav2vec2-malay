@@ -25,11 +25,12 @@
     
     `16k sample rate, at least 90% voice activity, 59 hours.`
   - Finally:
+  
     `!tar xvf semisupervised-malay.tar.gz`
    
     `!tar xvf semisupervised-malay-part2.tar.gz`
     
-     `!tar xvf semisupervised-malay-part2.tar.gz`
+    `!tar xvf semisupervised-malay-part2.tar.gz`
   
 ## Prepare datasets
   
