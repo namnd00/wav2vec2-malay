@@ -34,9 +34,9 @@
   
 ## Prepare datasets
   
-* Split dataset to train/val/test
+* Refine and split dataset to train/val/test
 
-  `python split_data.py --dataset_dir datasets --data_csv datasets/annotations.csv --split_batch True --n_batch 3 --n_split 3 --train_ratio 0.9 --wav_dir datasets/waves --text_dir datasets/texts`
+  `python split_data.py --dataset_dir datasets --data_csv datasets/submissions.csv --split_batch True --n_batch 3 --n_split 3 --train_ratio 0.9 --wav_dir datasets/waves --text_dir datasets/texts --refine_data True --refined_data_csv datasets/annotations.csv`
   
 * Create tokenizer
 
