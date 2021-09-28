@@ -95,8 +95,8 @@ def rename_files_and_get_annotations(args):
     # text_dir = "output-text"
     # wav_dir = "output-wav"
 
-    text_lst = os.listdir(text_dir)[:100]
-    wav_lst = os.listdir(wav_dir)[:100]
+    text_lst = os.listdir(text_dir)
+    wav_lst = os.listdir(wav_dir)
 
     count_txt = len(text_lst)
     count_wav = len(wav_lst)
