@@ -4,6 +4,8 @@ from pathlib import Path
 
 import pandas as pd
 import hashlib
+
+import torchaudio
 from tqdm import tqdm
 import numpy as np
 import logging
@@ -54,6 +56,25 @@ def parse_args():
                         default='train_batch_',
                         required=False,
                         help="str - prefix of file batch, i.e: batch_0.csv")
+    parser.add_argument('--min_duration',
+                        type=int,
+                        default=1,
+                        required=False,
+                        help="int - min duration")
+    parser.add_argument('--max_duration',
+                        type=int,
+                        default=20,
+                        required=False,
+                        help="int - max duration")
+    parser.add_argument('--refine_data',
+                        type=bool,
+                        default=True,
+                        required=True,
+                        help="bool - refine data by duration of audio?")
+    parser.add_argument('--refined_data_csv',
+                        type=str,
+                        required=True,
+                        help="str - refine dataset csv directory path")
 
     return parser.parse_args()
 
@@ -156,16 +177,39 @@ def split_dataset(annotation_df, n_split, train_ratio):
         return train_csv, test_csv
 
 
+def get_duration_audio(wav_path):
+    speech_array, sampling_rate = torchaudio.load(wav_path)
+    duration = len(speech_array.squeeze()) / sampling_rate
+    return duration
+
+
 def main():
     args = parse_args()
-    data_csv = rename_files_and_get_annotations(args)
+    data_df = rename_files_and_get_annotations(args)
+
+    output_df = None
+    if args.refine_data:
+        print("Size original: ", len(data_df))
+        audio_path_series = data_df['path']
+        data_df['duration'] = audio_path_series.apply(get_duration_audio)
+
+        max_duration = args.max_duration
+        min_duration = args.min_duration
+        assert max_duration > min_duration
+
+        output_df = data_df[data_df['duration'].apply(lambda x: max_duration >= x >= min_duration)]
+        print("Size after refining: ", len(output_df))
+        output_df.to_csv(args.refined_data_csv, index=False)
+
+    if output_df is None:
+        output_df = data_df
 
     if args.n_split == 3:
-        train_csv, eval_csv, test_csv = split_dataset(data_csv, args.n_split, args.train_ratio)
+        train_csv, eval_csv, test_csv = split_dataset(output_df, args.n_split, args.train_ratio)
         eval_csv.to_csv(f'{args.dataset_dir}/eval.csv', index=False)
         test_csv.to_csv(f'{args.dataset_dir}/test.csv', index=False)
     else:
-        train_csv, test_csv = split_dataset(args.data_csv, args.n_split, args.train_ratio)
+        train_csv, test_csv = split_dataset(output_df, args.n_split, args.train_ratio)
         test_csv.to_csv(f'{args.dataset_dir}/test.csv', index=False)
     logger.info(f"split dataset to {args.n_split} set")
 
