@@ -1,63 +1,17 @@
 program: train.py
 project: wav2vec4malay
-method: bayes
-metric:
-  name: wer
-  goal: minimize
+#metric:
+#  name: wer
+#  goal: minimize
 parameters:
-  attention_dropout:
-    values:
-      - 0.1
-#    distribution: log_uniform
-#    # from 0.1/5 to 0.1*5 - values provided are ln(min) -> ln(max)
-#    min: -3.9
-#    max: -0.7
-  activation_dropout:
-    values:
-      - 0.1
-#    distribution: log_uniform
-#    min: -3.9
-#    max: -0.7
-  hidden_dropout:
-    values:
-      - 0.1
-#    distribution: log_uniform
-#    min: -3.9
-#    max: -0.7
-  feat_proj_dropout:
-    values:
-      - 0.0
-#    distribution: log_uniform
-#    min: -3.9
-#    max: -0.7
-  mask_time_prob:
-    values:
-      - 0.05
-#    distribution: log_uniform
-#    min: -3.9
-#    max: -0.7
-  layerdrop:
-    values:
-      - 0.1
-#    distribution: log_uniform
-#    # from 0.05/2 to 0.05*2 - values provided are ln(min) -> ln(max)
-#    min: -4.6
-#    max: -1.6
   learning_rate:
-    values:
-      - 5e-5
-#    distribution: log_uniform
-#    min: -9.2
-#    max: -6.9
+    value: 5e-5
   weight_decay:
-    values:
-      - 0.005
+    value: 0.005
   warmup_steps:
-    values:
-      - 1000
+    value: 1000
   gradient_accumulation_steps:
-    values:
-      - 1
+    value: 1
   lr_scheduler_type:
     values:
       - cosine_with_restarts
@@ -67,14 +21,28 @@ command:
   - "--model_name_or_path"
   - "facebook/wav2vec2-large-xlsr-53"
   - "--dataset_config_name"
-  - "./tests"
-  - "--train_split_name"
-  - "./test/annotations.csv"
+  - "./datasets"
+  - "--train_data_csv"
+  - "./datasets/train_batch_1.csv"
+  - "--train_data_dir"
+  - "./datasets/train_batch_1"
+  - "--eval_data_csv"
+  - "./datasets/eval.csv"
+  - "--eval_data_dir"
+  - "./datasets/eval"
+  - "--test_data_csv"
+  - "./datasets/test.csv"
+  - "--test_data_dir"
+  - "./datasets/test"
+  - "vocab_path"
+  - "./datasets/vocab.json"
+  - "preprocessing_num_workers"
+  - 4
   - "--output_dir"
   - "./model"
   - "--overwrite_output_dir"
   - "--num_train_epochs"
-  - 20
+  - 30
   - "--per_device_train_batch_size"
   - 16
   - "--per_device_eval_batch_size"

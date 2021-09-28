@@ -1,1 +1,0 @@
-python create_tokenizer.py --data_csv tests/annotations.csv --path_json_output tests/vocab.json

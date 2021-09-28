@@ -53,25 +53,25 @@ def prepare_dataset(batch, processor):
     return batch
 
 
-def split_dataset(data_args, annotation_df):
-    # get mask to split dataset to train and test
-    msk = np.random.rand(len(annotation_df)) <= data_args.train_test_split_ratio
-    # get train csv
-    train_csv = annotation_df[msk]
-    # get temp test dataframe to split it to test and val
-    temp_test_csv = annotation_df[~msk]
-    # get mask train to split temp train dataframe to train and val
-    msk_test = np.random.rand(len(temp_test_csv)) <= (1 - data_args.train_test_split_ratio) / 2
-    # split temp train dataframe to train and val
-    test_csv = temp_test_csv[msk_test]
-    eval_csv = temp_test_csv[~msk_test]
-    # save train, val, test to .csv
-    train_path = f'{data_args.dataset_config_name}/train.csv'
-    eval_path = f'{data_args.dataset_config_name}/eval.csv'
-    test_path = f'{data_args.dataset_config_name}/test.csv'
-
-    train_csv.to_csv(train_path, index=False)
-    eval_csv.to_csv(eval_path, index=False)
-    test_csv.to_csv(test_path, index=False)
-
-    return train_path, eval_path, test_path
+# def split_dataset(data_args, annotation_df, prefix="batch_"):
+#     # get mask to split dataset to train and test
+#     msk = np.random.rand(len(annotation_df)) <= data_args.train_test_split_ratio
+#     # get train csv
+#     train_csv = annotation_df[msk]
+#     # get temp test dataframe to split it to test and val
+#     temp_test_csv = annotation_df[~msk]
+#     # get mask train to split temp train dataframe to train and val
+#     msk_test = np.random.rand(len(temp_test_csv)) <= (1 - data_args.train_test_split_ratio) / 2
+#     # split temp train dataframe to train and val
+#     test_csv = temp_test_csv[msk_test]
+#     eval_csv = temp_test_csv[~msk_test]
+#     # save train, val, test to .csv
+#     train_path = f'{data_args.dataset_config_name}/{prefix}train.csv'
+#     eval_path = f'{data_args.dataset_config_name}/{prefix}eval.csv'
+#     test_path = f'{data_args.dataset_config_name}/{prefix}test.csv'
+#
+#     train_csv.to_csv(train_path, index=False)
+#     eval_csv.to_csv(eval_path, index=False)
+#     test_csv.to_csv(test_path, index=False)
+#
+#     return train_path, eval_path, test_path

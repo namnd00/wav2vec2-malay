@@ -1,5 +1,7 @@
 import argparse
 import os
+from pathlib import Path
+
 import pandas as pd
 import hashlib
 from tqdm import tqdm
@@ -10,15 +12,35 @@ logger = logging.getLogger(__name__)
 
 
 def parse_args():
-    parser = argparse.ArgumentParser(description='Refine dataset.')
+    parser = argparse.ArgumentParser(description='Split dataset.')
+    parser.add_argument('--dataset_dir',
+                        type=str,
+                        required=True,
+                        help="str - dataset directory path")
     parser.add_argument('--data_csv',
                         type=str,
                         required=True,
                         help="str - csv directory path")
+    parser.add_argument('--split_batch',
+                        default=True,
+                        type=bool,
+                        required=True,
+                        help="bool - split dataset to multiple batch?")
     parser.add_argument('--n_batch',
+                        default=3,
+                        type=int,
+                        required=False,
+                        help="int - number of batch")
+    parser.add_argument('--n_split',
+                        default=3,
                         type=int,
                         required=True,
-                        help="int - number of batch")
+                        help="int - number of data to split to train/test or train/eval/test")
+    parser.add_argument('--train_ratio',
+                        default=0.9,
+                        type=int,
+                        required=True,
+                        help="int - ratio of data to split to train/test or train/eval/test")
     parser.add_argument('--wav_dir',
                         type=str,
                         required=True,
@@ -29,7 +51,7 @@ def parse_args():
                         help="str - path to directory contain text")
     parser.add_argument('--prefix_batch',
                         type=str,
-                        default='batch_',
+                        default='train_batch_',
                         required=False,
                         help="str - prefix of file batch, i.e: batch_0.csv")
 
@@ -46,8 +68,7 @@ def chunks(lst, n):
         yield lst[i:i + n]
 
 
-def main():
-    args = parse_args()
+def rename_files_and_get_annotations(args):
     text_dir = args.text_dir
     wav_dir = args.wav_dir
     # text_dir = "output-text"
@@ -77,7 +98,7 @@ def main():
             src_wav = f"{wav_dir}/{wav_file}"
 
             # prefix_ = str(calc_checksum(wav_file))
-            prefix_ = f"fwav_{(i+1):06}"
+            prefix_ = f"fwav_{(i + 1):06}"
             dst_txt = f"{text_dir}/{prefix_}.txt"
             dst_wav = f"{wav_dir}/{prefix_}.wav"
             if not os.path.exists(src_txt):
@@ -104,17 +125,54 @@ def main():
     sub_df = pd.DataFrame(data={'path': dst_wav_lst, 'transcript': dst_txt_lst})
     sub_df.to_csv(args.data_csv, index=False)
 
+
+def split_batch(dataset_dir, sub_df, n_batch, prefix_batch):
     sub_df = sub_df.sample(frac=1).reset_index(drop=True)
     total_samples = len(sub_df)
     print("total number of samples: ", total_samples)
-    df_list = np.array_split(sub_df, args.n_batch)
+    df_list = np.array_split(sub_df, n_batch)
     for ix, df in enumerate(df_list):
         sub_samples = len(df)
-        df.to_csv(f"{args.prefix_batch}{str(ix + 1)}.csv", index=False)
-        print(f"df-{str(ix + 1)}, number of sub-samples: {sub_samples}")
+        df.to_csv(f"{dataset_dir}/{prefix_batch}{str(ix + 1)}.csv", index=False)
+        logger.info(f"df-{str(ix + 1)}, number of sub-samples: {sub_samples}")
+
+
+def split_dataset(annotation_df, n_split, train_ratio):
+    msk = np.random.rand(len(annotation_df)) <= train_ratio
+    # get train csv
+    train_csv = annotation_df[msk]
+    # get temp test dataframe to split it to test and val
+    if n_split == 3:
+        temp_test_csv = annotation_df[~msk]
+        # get mask train to split temp train dataframe to train and val
+        msk_test = np.random.rand(len(temp_test_csv)) <= (1 - train_ratio) / 2
+        # split temp train dataframe to train and val
+        test_csv = temp_test_csv[msk_test]
+        eval_csv = temp_test_csv[~msk_test]
+        return train_csv, eval_csv, test_csv
+    else:
+        test_csv = annotation_df[~msk]
+        return train_csv, test_csv
+
+
+def main():
+    args = parse_args()
+    if not Path.exists(args.data_csv):
+        rename_files_and_get_annotations(args)
+
+    if args.n_split == 3:
+        train_csv, eval_csv, test_csv = split_dataset(args.data_csv, args.n_split, args.train_ratio)
+        eval_csv.to_csv(f'{args.dataset_dir}/eval.csv', index=False)
+        test_csv.to_csv(f'{args.dataset_dir}/test.csv', index=False)
+    else:
+        train_csv, test_csv = split_dataset(args.data_csv, args.n_split, args.train_ratio)
+        test_csv.to_csv(f'{args.dataset_dir}/test.csv', index=False)
+    logger.info(f"split dataset to {args.n_split} set")
+
+    if args.split_batch:
+        split_batch(args.dataset_dir, train_csv, args.n_batch, args.prefix_batch)
+        logger.info(f"split dataset to {args.n_batch} batch")
 
 
 if __name__ == "__main__":
     main()
-
-

@@ -6,6 +6,7 @@ Contact : nam.nd.d3@gmail.com
 Time    : 9/10/2021 9:22 AM
 Desc:
 """
+import argparse
 from dataclasses import dataclass, field
 from typing import List, Optional
 
@@ -90,23 +91,44 @@ class DataTrainingArguments:
     """
 
     dataset_config_name: Optional[str] = field(
-        default=None,
+        default="./datasets",
         metadata={
             "help": "The configuration name of the dataset to use (via the datasets library)."
         },
     )
-    train_test_split_ratio: Optional[float] = field(
-        default=0.8,
+    train_data_csv: Optional[str] = field(
+        default="./datasets/train_batch_1.csv",
         metadata={
-            "help": "The ratio of train test split datasets. Defaults to 0.2"
-        }
-    )
-    train_split_name: Optional[str] = field(
-        default=None,
-        metadata={
-            "help": "The name of the training data set split to use (via the datasets library). Defaults to "
-                    "'submission.csv' "
+            "help": "The path of the train dataset csv"
         },
+    )
+    train_data_dir: Optional[str] = field(
+        default="./datasets/train_batch_1",
+        metadata={'help': "path to train directory"}
+    )
+    eval_data_csv: Optional[str] = field(
+        default="./datasets/eval.csv",
+        metadata={
+            "help": "The path of the eval dataset csv"
+        },
+    )
+    eval_data_dir: Optional[str] = field(
+        default="./datasets/eval",
+        metadata={'help': "path to eval directory"}
+    )
+    test_data_csv: Optional[str] = field(
+        default="./datasets/test.csv",
+        metadata={
+            "help": "The path of the test dataset csv"
+        },
+    )
+    test_data_dir: Optional[str] = field(
+        default="./datasets/test",
+        metadata={'help': "path to test directory"}
+    )
+    vocab_path: Optional[str] = field(
+        default="./datasets/vocab.json",
+        metadata={'help': "path to vocab file"}
     )
     overwrite_cache: bool = field(
         default=False,
@@ -123,19 +145,41 @@ class DataTrainingArguments:
     per_device_test_batch_size: Optional[int] = field(
         default=8, metadata={"help": "Batch size per GPU/TPU core/CPU for testing."}
     )
-    data_augment: bool = field(
-        default=True,
-        metadata={"help": "Augment speech data or not"}
+    # have_augment_data: bool = field(
+    #     default=False,
+    #     metadata={"help": "Have augment data?"}
+    # )
+    # if have_augment_data:
+    #     num_augmented_samples: int = field(
+    #         default=8,
+    #         metadata={"help": "Number of augmented samples"}
+    #     )
+    # num_workers: int = field(
+    #     default=2,
+    #     metadata={"help": "Number of workers"}
+    # )
+
+
+@dataclass
+class ParameterArguments:
+    learning_rate: Optional[float] = field(
+        default=5e-5,
+        metadata={"help": "The learning rate"},
     )
-    audio_dir: Optional[str] = field(
-        default="",
-        metadata={'help': "path to audio directory"}
+    weight_decay: Optional[float] = field(
+        default=0.005,
+        metadata={"help": "The weight decay"},
     )
-    num_augmented_samples: int = field(
-        default=8,
-        metadata={"help": "Number of augmented samples"}
+    warmup_steps: Optional[float] = field(
+        default=1000,
+        metadata={"help": "The warmup steps"},
     )
-    num_workers: int = field(
-        default=2,
-        metadata={"help": "Number of workers"}
+    gradient_accumulation_steps: Optional[float] = field(
+        default=1,
+        metadata={"help": "The gradient accumulation steps"},
     )
+    lr_scheduler_type: Optional[str] = field(
+        default="cosine_with_restarts",
+        metadata={"help": "The learning rate scheduler type"},
+    )
+

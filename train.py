@@ -9,8 +9,6 @@ Desc:
 import pandas as pd
 import os
 import sys
-
-from torch.utils.data import DataLoader
 import datasets
 import numpy as np
 import torch
@@ -18,7 +16,6 @@ import transformers
 
 import logging
 import wandb
-
 
 from callbacks import LossNaNStoppingCallback, TimingCallback
 from datasets import Dataset
@@ -39,13 +36,13 @@ from transformers import (
     Wav2Vec2Processor,
     TrainerCallback,
     is_apex_available,
-    set_seed,
+    set_seed, EarlyStoppingCallback,
 )
 
 from argument_classes import ModelArguments, DataTrainingArguments
-from preprocessing_dataset import split_dataset, remove_special_characters, prepare_dataset, \
-    speech_file_to_array_fn
-from src.audio_dataloader import MalayAudioDataset, collate_fn
+from preprocessing_dataset import (remove_special_characters,
+                                   prepare_dataset,
+                                   speech_file_to_array_fn)
 from utils import Timer
 
 logger = logging.getLogger(__name__)
@@ -260,49 +257,70 @@ def main():
     # Set seed before initializing model.
     set_seed(training_args.seed)
 
-    if not Path(data_args.train_split_name).exists():
-        logger.error("Must import dataset")
+    if not Path(data_args.vocab_path).exists():
+        logger.error("Must import vocab")
 
-    annotation_df = pd.read_csv(data_args.train_split_name, encoding='utf-8')
-    dataset_train_path, dataset_eval_path, dataset_test_path = split_dataset(data_args, annotation_df)
+    dataset_train_df = pd.read_csv(data_args.train_data_csv)
 
-    train_dataset = MalayAudioDataset(annotation_file=dataset_train_path,
-                                      audio_dir=data_args.audio_dir,
-                                      sample_rate=16000,
-                                      num_augmented_samples=data_args.num_augmented_samples,
-                                      have_transforms=True,
-                                      device=training_args.device)
-
-    log_timestamp("Generate dataset")
-
-    n_samples = len(annotation_df)
-    n_train = len(train_dataset)
-    n_eval = n_test = (n_samples - n_train) / 2
-    logger.info(f"- Train size: {n_train} "
-                f"- Val size: {n_eval} "
-                f"- Test size: {n_test}")
-    logger.info(f"Split data to train/val/test->"
-                f"{n_train / n_samples * 100:02}"
-                f"/{n_eval / n_samples * 100:02}"
-                f"/{n_test / n_samples * 100:02}")
-
-    eval_dataset = None
-    if training_args.do_eval:
-        dataset_eval_df = pd.read_csv(dataset_eval_path)
-        eval_dataset = Dataset.from_pandas(dataset_eval_df)
-        log_timestamp("load val data")
-        eval_dataset = eval_dataset.map(
+    if Path(data_args.train_data_dir).exists():
+        train_dataset = datasets.load_from_disk(data_args.train_data_dir)
+        log_timestamp("Train: load pre-processed data")
+    else:
+        train_dataset = Dataset.from_pandas(dataset_train_df)
+        train_dataset = train_dataset.map(
             lambda x: remove_special_characters(x, CHARS_TO_IGNORE, train=False),
             num_proc=data_args.preprocessing_num_workers
         )
-        log_timestamp("Eval: remove special characters")
+        log_timestamp("Train: remove special characters in transcripts")
 
-        eval_dataset = eval_dataset.map(
-            speech_file_to_array_fn,
-            remove_columns=eval_dataset.column_names,
+        train_dataset = train_dataset.map(
+            lambda x: prepare_dataset(x, processor),
+            remove_columns=train_dataset.column_names,
+            batch_size=training_args.per_device_train_batch_size,
+            batched=True,
             num_proc=data_args.preprocessing_num_workers,
         )
-        log_timestamp("Eval: speech to array")
+        log_timestamp("Train: prepare speech array")
+        train_dataset.save_to_disk(data_args.train_data_dir)
+        log_timestamp("Train: save to disk")
+
+    dataset_eval_df = pd.read_csv(data_args.eval_data_csv)
+
+    if training_args.do_eval:
+        if Path(data_args.eval_data_dir).exists():
+            eval_dataset = datasets.load_from_disk(data_args.eval_data_dir)
+            log_timestamp("Eval: load pre-processed data")
+        else:
+            eval_dataset = Dataset.from_pandas(dataset_eval_df)
+            eval_dataset = eval_dataset.map(
+                lambda x: remove_special_characters(x, CHARS_TO_IGNORE, train=False),
+                num_proc=data_args.preprocessing_num_workers
+            )
+            log_timestamp("Eval: remove special characters")
+
+            eval_dataset = eval_dataset.map(
+                speech_file_to_array_fn,
+                remove_columns=eval_dataset.column_names,
+                num_proc=data_args.preprocessing_num_workers,
+            )
+            log_timestamp("Eval: speech to array")
+            train_dataset.save_to_disk(data_args.eval_data_dir)
+            log_timestamp("Train: save to disk")
+
+    dataset_test_df = pd.read_csv(data_args.test_data_csv)
+
+    if Path(data_args.test_data_dir).exists():
+        test_dataset = datasets.load_from_disk(data_args.test_data_dir)
+        log_timestamp("Test: load pre-processed data")
+    else:
+        test_dataset = Dataset.from_pandas(dataset_test_df)
+        test_dataset = test_dataset.map(
+            lambda x: remove_special_characters(x, CHARS_TO_IGNORE, train=False),
+            num_proc=data_args.preprocessing_num_workers
+        )
+        log_timestamp("Test: speech to array")
+        test_dataset.save_to_disk(data_args.test_data_dir)
+        log_timestamp("Test: save to disk")
 
     # Load pretrained model and tokenizer
     #
@@ -339,15 +357,19 @@ def main():
         pad_token_id=processor.tokenizer.pad_token_id,
         vocab_size=len(processor.tokenizer),
     )
-    if model_args.freeze_feature_extractor:
-        model.freeze_feature_extractor()
-        log_timestamp("freeze feature extractor")
-
     log_timestamp("load model")
 
-    # Data collator
-    data_collator = DataCollatorCTCWithPadding(processor=processor, padding=True)
-    log_timestamp("create data collator")
+    n_train = len(dataset_train_df)
+    n_eval = len(dataset_eval_df)
+    n_test = len(dataset_test_df)
+    logger.info(f"- Train size: {n_train} "
+                f"- Val size: {n_eval} "
+                f"- Test size: {n_test}")
+
+    # Metric
+    cer_metric = datasets.load_metric("cer")
+    # we use a custom WER that considers punctuation
+    wer_metric = datasets.load_metric("metrics/wer_punctuation.py")
 
     def compute_metrics(pred):
         pred_logits = pred.predictions
@@ -364,99 +386,56 @@ def main():
 
         return {"cer": cer, "wer": wer}
 
+    if model_args.freeze_feature_extractor:
+        model.freeze_feature_extractor()
+        log_timestamp("freeze feature extractor")
+
+    # Data collator
+    data_collator = DataCollatorCTCWithPadding(processor=processor, padding=True)
+    log_timestamp("create data collator")
+
     # Initialize our Trainer
-    trainer = Trainer(
+    trainer = CTCTrainer(
         model=model,
         data_collator=data_collator,
         args=training_args,
         compute_metrics=compute_metrics,
-        # train_dataset=train_dataset if training_args.do_train else None,
+        train_dataset=train_dataset if training_args.do_train else None,
         eval_dataset=eval_dataset if training_args.do_eval else None,
         tokenizer=processor.feature_extractor,
     )
+
     loss_nan_stopping_callback = LossNaNStoppingCallback()
+    early_stopping_callback = EarlyStoppingCallback()
     timing_callback = TimingCallback()
     trainer.add_callback(loss_nan_stopping_callback)
+    trainer.add_callback(early_stopping_callback)
     trainer.add_callback(timing_callback)
     log_timestamp("setup trainer")
+    if training_args.do_train:
+        if last_checkpoint is not None:
+            checkpoint = last_checkpoint
+        elif os.path.isdir(model_args.model_name_or_path):
+            checkpoint = model_args.model_name_or_path
+        else:
+            checkpoint = None
 
-    # Training
-    # train_dataloader = trainer.get_train_dataloader()
-    train_dataloader = DataLoader(dataset=train_dataset,
-                                  batch_size=training_args.per_device_train_batch_size,
-                                  num_workers=data_args.num_workers,
-                                  collate_fn=collate_fn,
-                                  shuffle=True)
+        train_result = trainer.train(resume_from_checkpoint=checkpoint)
+        log_timestamp("train model")
+        trainer.save_model()
 
-    log_timestamp("Create train data loader")
+        # save the feature_extractor and the tokenizer
+        if is_main_process(training_args.local_rank):
+            processor.save_pretrained(training_args.output_dir)
 
-    # iter_loader = iter(train_dataloader)
-    for signals, sr, labels in train_dataloader:
-        train_batch_dict = {'speech': signals, 'sampling_rate': sr, 'text': labels}
-        log_timestamp("Train: Load audio array, transcripts")
+        metrics = train_result.metrics
+        metrics["train_samples"] = len(train_dataset)
 
-        train_batch = Dataset.from_dict(train_batch_dict)
-        train_batch = train_batch.map(
-            lambda x: remove_special_characters(x, CHARS_TO_IGNORE, train=False)
-        )
-        log_timestamp("Train: remove special characters in transcripts")
+        wandb.log({f"train/{k}": v for k, v in metrics.items()})
 
-        train_batched = train_batch.map(
-            lambda x: prepare_dataset(x, processor),
-            remove_columns=train_batch.column_names,
-            batch_size=training_args.per_device_train_batch_size,
-            batched=True,
-            num_proc=data_args.preprocessing_num_workers,
-        )
-        log_timestamp("Train: prepare speech array")
-        trainer.train_dataset = train_batched
-
-        if training_args.do_train:
-            if last_checkpoint is not None:
-                checkpoint = last_checkpoint
-            elif os.path.isdir(model_args.model_name_or_path):
-                checkpoint = model_args.model_name_or_path
-            else:
-                checkpoint = None
-
-            train_result = trainer.train(resume_from_checkpoint=checkpoint)
-            log_timestamp("train model")
-            trainer.save_model()
-
-            # save the feature_extractor and the tokenizer
-            if is_main_process(training_args.local_rank):
-                processor.save_pretrained(training_args.output_dir)
-
-            metrics = train_result.metrics
-            metrics["train_samples"] = len(train_dataset)
-
-            wandb.log({f"train/{k}": v for k, v in metrics.items()})
-
-            trainer.log_metrics("train", metrics)
-            trainer.save_metrics("train", metrics)
-            trainer.save_state()
-
-    # Prepare test dataset
-    test_dataset = Dataset.from_pandas(dataset_test_path)
-    log_timestamp("load test data")
-    test_dataset = test_dataset.map(
-        lambda x: remove_special_characters(x, CHARS_TO_IGNORE, train=False),
-        remove_columns=["transcript"],
-    )
-    log_timestamp("Test: remove special characters")
-
-    test_dataset_dir = f"{data_args.dataset_config_name}/test"
-    if not Path(test_dataset_dir).exists():
-        test_dataset = test_dataset.map(
-            speech_file_to_array_fn,
-            num_proc=data_args.preprocessing_num_workers,
-        )
-        test_dataset.save_to_disk(test_dataset_dir)
-
-    # Metric
-    cer_metric = datasets.load_metric("cer")
-    # we use a custom WER that considers punctuation
-    wer_metric = datasets.load_metric("wer")
+        trainer.log_metrics("train", metrics)
+        trainer.save_metrics("train", metrics)
+        trainer.save_state()
 
     # Final test metrics
     logger.info("*** Test ***")
@@ -467,7 +446,6 @@ def main():
             "Loss NaN detected, typically resulting in bad WER & CER so we won't calculate them."
         )
     else:
-
         def evaluate(batch):
             inputs = processor(
                 batch["speech"], sampling_rate=16_000, return_tensors="pt", padding=True

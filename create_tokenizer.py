@@ -6,6 +6,8 @@ Contact : nam.nd.d3@gmail.com
 Time    : 9/27/2021 8:38 AM
 Desc:
 """
+from pathlib import Path
+
 from datasets import Dataset
 import pandas as pd
 from typing import Dict
@@ -60,8 +62,10 @@ if __name__ == "__main__":
     args = parser.parse_args()
     df = pd.read_csv(args.data_csv, encoding='utf-8')
     vocab_dict = create_tokenizer(df)
-    vocab_dict["|"] = len(vocab_dict)
+    vocab_dict["|"] = vocab_dict[" "]
+    del vocab_dict[" "]
     vocab_dict["[UNK]"] = len(vocab_dict)
     vocab_dict["[PAD]"] = len(vocab_dict)
+    Path(args.path_json_output).parent.mkdir(parents=True, exist_ok=True)
     with open(args.path_json_output, 'w') as vocab_file:
         json.dump(vocab_dict, vocab_file)
