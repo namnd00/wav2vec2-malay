@@ -36,7 +36,7 @@ from transformers import (
     Wav2Vec2Processor,
     TrainerCallback,
     is_apex_available,
-    set_seed, EarlyStoppingCallback,
+    set_seed,
 )
 
 from argument_classes import ModelArguments, DataTrainingArguments
@@ -422,10 +422,8 @@ def main():
     )
 
     loss_nan_stopping_callback = LossNaNStoppingCallback()
-    early_stopping_callback = EarlyStoppingCallback()
     timing_callback = TimingCallback()
     trainer.add_callback(loss_nan_stopping_callback)
-    trainer.add_callback(early_stopping_callback)
     trainer.add_callback(timing_callback)
     log_timestamp("setup trainer")
     if training_args.do_train:
