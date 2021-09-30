@@ -46,7 +46,7 @@ def prepare_dataset(batch, processor):
             batch["sampling_rate"] == 16000
     ), f"Make sure all inputs have the same sampling rate of {processor.feature_extractor.sampling_rate}."
     batch["input_values"] = processor(
-        batch["speech"], sampling_rate=batch["sampling_rate"][0]
+        batch["speech"], sampling_rate=batch["sampling_rate"]
     ).input_values
     # Setup the processor for targets
     with processor.as_target_processor():
