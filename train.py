@@ -260,6 +260,44 @@ def main():
     # Set seed before initializing model.
     set_seed(training_args.seed)
 
+    # Load pretrained model and tokenizer
+    #
+    # Distributed training:
+    # The .from_pretrained methods guarantee that only one local process can concurrently
+    # download model & vocab.
+    tokenizer = Wav2Vec2CTCTokenizer(
+        VOCAB_PATH,
+        unk_token="[UNK]",
+        pad_token="[PAD]",
+        word_delimiter_token="|",
+    )
+    feature_extractor = Wav2Vec2FeatureExtractor(
+        feature_size=1,
+        sampling_rate=16_000,
+        padding_value=0.0,
+        do_normalize=True,
+        return_attention_mask=True,
+    )
+    processor = Wav2Vec2Processor(
+        feature_extractor=feature_extractor, tokenizer=tokenizer
+    )
+
+    model = Wav2Vec2ForCTC.from_pretrained(
+        model_args.model_name_or_path,
+        cache_dir=model_args.cache_dir,
+        activation_dropout=model_args.activation_dropout,
+        attention_dropout=model_args.attention_dropout,
+        hidden_dropout=model_args.hidden_dropout,
+        feat_proj_dropout=model_args.feat_proj_dropout,
+        mask_time_prob=model_args.mask_time_prob,
+        gradient_checkpointing=model_args.gradient_checkpointing,
+        layerdrop=model_args.layerdrop,
+        ctc_loss_reduction="mean",
+        pad_token_id=processor.tokenizer.pad_token_id,
+        vocab_size=len(processor.tokenizer),
+    )
+    log_timestamp("load model")
+
     if not Path(VOCAB_PATH).exists():
         logger.error("Must import vocab")
 
@@ -325,43 +363,6 @@ def main():
         log_timestamp("Test: speech to array")
         test_dataset.save_to_disk(data_args.test_data_dir)
         log_timestamp("Test: save to disk")
-
-    # Load pretrained model and tokenizer
-    #
-    # Distributed training:
-    # The .from_pretrained methods guarantee that only one local process can concurrently
-    # download model & vocab.
-    tokenizer = Wav2Vec2CTCTokenizer(
-        VOCAB_PATH,
-        unk_token="[UNK]",
-        pad_token="[PAD]",
-        word_delimiter_token="|",
-    )
-    feature_extractor = Wav2Vec2FeatureExtractor(
-        feature_size=1,
-        sampling_rate=16_000,
-        padding_value=0.0,
-        do_normalize=True,
-        return_attention_mask=True,
-    )
-    processor = Wav2Vec2Processor(
-        feature_extractor=feature_extractor, tokenizer=tokenizer
-    )
-    model = Wav2Vec2ForCTC.from_pretrained(
-        model_args.model_name_or_path,
-        cache_dir=model_args.cache_dir,
-        activation_dropout=model_args.activation_dropout,
-        attention_dropout=model_args.attention_dropout,
-        hidden_dropout=model_args.hidden_dropout,
-        feat_proj_dropout=model_args.feat_proj_dropout,
-        mask_time_prob=model_args.mask_time_prob,
-        gradient_checkpointing=model_args.gradient_checkpointing,
-        layerdrop=model_args.layerdrop,
-        ctc_loss_reduction="mean",
-        pad_token_id=processor.tokenizer.pad_token_id,
-        vocab_size=len(processor.tokenizer),
-    )
-    log_timestamp("load model")
 
     n_train = len(dataset_train_df)
     n_eval = len(dataset_eval_df)
