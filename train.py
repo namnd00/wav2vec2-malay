@@ -224,7 +224,7 @@ def main():
     # get args
     model_args, data_args, training_args = get_parser()
     # CONSTANTS
-    chars_to_ignore = ['"', "'", "*", "()", "[\]", "\-", "`", "_", "+/=%|"]
+    chars_to_ignore = ['"', "'", "*", "()", "^", "[\]", "\-", "`", "_", "+/=%|"]
     pattern_dot_decimal = "\S+\&\S+"
 
     CHARS_TO_IGNORE = f'[{"".join(chars_to_ignore)}]'
@@ -310,7 +310,7 @@ def main():
         train_dataset = Dataset.from_pandas(dataset_train_df)
         train_dataset = train_dataset.map(
             lambda x: remove_special_characters(x, CHARS_TO_IGNORE, pattern_dot_decimal, train=False),
-            batched=True,
+            batch_size=training_args.per_device_train_batch_size,
             num_proc=1,
         )
         log_timestamp("Train: remove special characters in transcripts")
@@ -318,7 +318,7 @@ def main():
         train_dataset = train_dataset.map(
             lambda x: speech_file_to_array_fn(x),
             remove_columns=train_dataset.column_names,
-            batched=True,
+            batch_size=training_args.per_device_train_batch_size,
             num_proc=1,
         )
         log_timestamp("Train: speech to array")
@@ -327,7 +327,6 @@ def main():
             lambda x: prepare_dataset(x, processor),
             remove_columns=train_dataset.column_names,
             batch_size=training_args.per_device_train_batch_size,
-            batched=True,
             num_proc=1,
         )
         log_timestamp("Train: prepare speech array")
@@ -345,14 +344,14 @@ def main():
             eval_dataset = Dataset.from_pandas(dataset_eval_df)
             eval_dataset = eval_dataset.map(
                 lambda x: remove_special_characters(x, CHARS_TO_IGNORE, pattern_dot_decimal, train=False),
-                batched=True,
+                batch_size=training_args.per_device_eval_batch_size,
                 num_proc=1
             )
             log_timestamp("Eval: remove special characters")
 
             eval_dataset = eval_dataset.map(
                 speech_file_to_array_fn,
-                batched=True,
+                batch_size=training_args.per_device_eval_batch_size,
                 remove_columns=eval_dataset.column_names,
                 num_proc=1
             )
@@ -369,7 +368,7 @@ def main():
         test_dataset = Dataset.from_pandas(dataset_test_df)
         test_dataset = test_dataset.map(
             lambda x: remove_special_characters(x, CHARS_TO_IGNORE, pattern_dot_decimal, train=False),
-            batched=True,
+            batch_size=training_args.per_device_eval_batch_size,
             num_proc=1
         )
         log_timestamp("Test: speech to array")
@@ -480,7 +479,7 @@ def main():
         # no need to cache mapped test_dataset
         datasets.set_caching_enabled(False)
         result = test_dataset.map(
-            evaluate, batched=True, batch_size=training_args.per_device_eval_batch_size
+            evaluate, batch_size=training_args.per_device_eval_batch_size
         )
         log_timestamp("get test predictions")
         test_cer = cer_metric.compute(
