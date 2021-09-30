@@ -14,8 +14,7 @@ import itertools
 import argparse
 import json
 import time
-
-from datasets import Dataset
+import datasets
 
 chars_to_ignore_regex = '[\,\?\.\!\-\;\:\\"\$]'
 
@@ -36,7 +35,7 @@ def create_tokenizer(dataframe: pd.DataFrame) -> Dict:
     :param dataframe:
     :return:
     """
-    data = Dataset.from_pandas(dataframe)
+    data = datasets.Dataset.from_pandas(dataframe)
     print("remove special characters ......")
     data = data.map(remove_special_characters)
     print("extract all chars ..........")
