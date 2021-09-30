@@ -224,6 +224,9 @@ def main():
     # get args
     model_args, data_args, training_args = get_parser()
     # CONSTANTS
+    chars_to_ignore_regex = ['"', "'", "*", "()", "[\]", "-", "`", "_", "+/=%|"]
+    pattern_dot_decimal = "\S+\&\S+"
+
     CHARS_TO_IGNORE = f'[{"".join(data_args.chars_to_ignore)}]'
     VOCAB_PATH = f"{data_args.dataset_config_name}/vocab.json"
 
@@ -268,7 +271,7 @@ def main():
     else:
         train_dataset = Dataset.from_pandas(dataset_train_df)
         train_dataset = train_dataset.map(
-            lambda x: remove_special_characters(x, CHARS_TO_IGNORE, train=False),
+            lambda x: remove_special_characters(x, CHARS_TO_IGNORE, pattern_dot_decimal, train=False),
             num_proc=data_args.preprocessing_num_workers
         )
         log_timestamp("Train: remove special characters in transcripts")
@@ -293,7 +296,7 @@ def main():
         else:
             eval_dataset = Dataset.from_pandas(dataset_eval_df)
             eval_dataset = eval_dataset.map(
-                lambda x: remove_special_characters(x, CHARS_TO_IGNORE, train=False),
+                lambda x: remove_special_characters(x, CHARS_TO_IGNORE, pattern_dot_decimal, train=False),
                 num_proc=data_args.preprocessing_num_workers
             )
             log_timestamp("Eval: remove special characters")
@@ -315,7 +318,7 @@ def main():
     else:
         test_dataset = Dataset.from_pandas(dataset_test_df)
         test_dataset = test_dataset.map(
-            lambda x: remove_special_characters(x, CHARS_TO_IGNORE, train=False),
+            lambda x: remove_special_characters(x, CHARS_TO_IGNORE, pattern_dot_decimal, train=False),
             num_proc=data_args.preprocessing_num_workers
         )
         log_timestamp("Test: speech to array")

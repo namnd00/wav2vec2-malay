@@ -13,12 +13,10 @@ import torchaudio
 from unidecode import unidecode
 
 
-def remove_special_characters(batch, chars_to_ignore_regex, train=True):
-    batch["target_text"] = (
-        re.sub(chars_to_ignore_regex, " ", unidecode(batch["transcript"]))
-            .lower()
-            .strip()
-    )
+def remove_special_characters(batch, chars_to_ignore_regex, pattern_dot_decimal, train=True):
+    batch["transcript"] = re.sub(chars_to_ignore_regex, ' ', batch["transcript"]).lower()
+    if re.search(pattern_dot_decimal, batch["transcript"]):
+        batch["transcript"] = re.sub("&", ' dan ', batch["transcript"])
     if train:
         batch["target_text"] += " "
     return batch
@@ -51,8 +49,6 @@ def prepare_dataset(batch, processor):
     with processor.as_target_processor():
         batch["labels"] = processor(batch["target_text"]).input_ids
     return batch
-
-
 
 # def split_dataset(data_args, annotation_df, prefix="batch_"):
 #     # get mask to split dataset to train and test

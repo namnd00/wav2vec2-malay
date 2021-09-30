@@ -138,10 +138,6 @@ class DataTrainingArguments:
         default=None,
         metadata={"help": "The number of processes to use for the preprocessing."},
     )
-    chars_to_ignore: List[str] = list_field(
-        default=['"', "()", "[\]", "`", "_", "+/=%|"],
-        metadata={"help": "A list of characters to remove from the transcripts."},
-    )
     per_device_test_batch_size: Optional[int] = field(
         default=8, metadata={"help": "Batch size per GPU/TPU core/CPU for testing."}
     )
