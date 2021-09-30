@@ -1,20 +1,24 @@
 program: train.py
 project: wav2vec4malay
-#metric:
-#  name: wer
-#  goal: minimize
+metric:
+  name: wer
+  goal: minimize
 parameters:
   learning_rate:
-    value: 5e-5
+    values:
+    - 5e-5
   weight_decay:
-    value: 0.005
+    values:
+    - 0.005
   warmup_steps:
-    value: 1000
+    values:
+    - 1000
   gradient_accumulation_steps:
-    value: 1
+    values:
+    - 1
   lr_scheduler_type:
     values:
-      - cosine_with_restarts
+    - cosine_with_restarts
 command:
   - python
   - ${program}

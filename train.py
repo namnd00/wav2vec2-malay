@@ -224,10 +224,10 @@ def main():
     # get args
     model_args, data_args, training_args = get_parser()
     # CONSTANTS
-    chars_to_ignore_regex = ['"', "'", "*", "()", "[\]", "-", "`", "_", "+/=%|"]
+    chars_to_ignore = ['"', "'", "*", "()", "[\]", "\-", "`", "_", "+/=%|"]
     pattern_dot_decimal = "\S+\&\S+"
 
-    CHARS_TO_IGNORE = f'[{"".join(data_args.chars_to_ignore)}]'
+    CHARS_TO_IGNORE = f'[{"".join(chars_to_ignore)}]'
     VOCAB_PATH = f"{data_args.dataset_config_name}/vocab.json"
 
     # override default run name and log all args
@@ -289,6 +289,7 @@ def main():
 
     dataset_eval_df = pd.read_csv(data_args.eval_data_csv)
 
+    eval_dataset = None
     if training_args.do_eval:
         if Path(data_args.eval_data_dir).exists():
             eval_dataset = datasets.load_from_disk(data_args.eval_data_dir)
