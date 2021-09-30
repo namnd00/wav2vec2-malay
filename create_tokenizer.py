@@ -16,13 +16,15 @@ import json
 import time
 import datasets
 
-chars_to_ignore_regex = ['"', "*", "()", "[\]", "`", "_", "+/=%|"]
+chars_to_ignore_regex = ['"', "'", "*", "()", "[\]", "`", "_", "+/=%|"]
+pattern_dot_decimal = "\S+\&\S+"
 CHARS_TO_IGNORE = f'[{"".join(chars_to_ignore_regex)}]'
 
 
 def remove_special_characters(batch):
-    batch["transcript"] = re.sub(CHARS_TO_IGNORE, '', batch["transcript"]).lower()
-    batch["transcript"] = re.sub("&", 'dan', batch["transcript"])
+    batch["transcript"] = re.sub(CHARS_TO_IGNORE, ' ', batch["transcript"]).lower()
+    if re.search(pattern_dot_decimal, batch["transcript"]):
+        batch["transcript"] = re.sub("&", ' dan ', batch["transcript"])
     return batch
 
 
