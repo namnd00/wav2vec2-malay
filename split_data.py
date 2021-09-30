@@ -84,7 +84,7 @@ def parse_args():
 
 
 def calc_checksum(f):
-    return str(hashlib.sha3_512(f.encode('utf-8')).hexdigest()[0:32])
+    return str(hashlib.sha3_512(f.encode('utf-8')).hexdigest()[0:8])
 
 
 def chunks(lst, n):
@@ -125,8 +125,8 @@ def rename_files_and_get_annotations(args):
             src_txt = f"{text_dir}/{txt_file}"
             src_wav = f"{wav_dir}/{wav_file}"
 
-            # prefix_ = str(calc_checksum(wav_file))
-            prefix_ = f"fwav_{(i + 1):06}"
+            prefix_ = str(calc_checksum(wav_file))
+            # prefix_ = f"fwav_{(i + 1):06}"
             dst_txt = f"{text_dir}/{prefix_}.txt"
             dst_wav = f"{wav_dir}/{prefix_}.wav"
             if not os.path.exists(src_txt):
