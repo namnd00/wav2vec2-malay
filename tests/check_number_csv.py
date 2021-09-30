@@ -28,7 +28,8 @@ def main():
         print("=="*100)
         csv_path = os.path.join(path, csv_file)
         df = pd.read_csv(csv_path)
-        print(f"{ix+1}. {csv_file} -> Columns: {list(df.columns)} -> Samples: {len(df)}")
+        print(f"{ix+1}. {csv_file}\n-> Columns: {list(df.columns)} \n-> Samples: {len(df)}"
+              f"\nMax-duration-> {max(df['duration'])} -> Min-duration: {min(df['duration'])}")
         print(df.head())
 
 
