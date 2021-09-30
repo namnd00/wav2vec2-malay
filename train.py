@@ -310,9 +310,18 @@ def main():
         train_dataset = Dataset.from_pandas(dataset_train_df)
         train_dataset = train_dataset.map(
             lambda x: remove_special_characters(x, CHARS_TO_IGNORE, pattern_dot_decimal, train=False),
+            batched=True,
             num_proc=1,
         )
         log_timestamp("Train: remove special characters in transcripts")
+
+        train_dataset = train_dataset.map(
+            lambda x: speech_file_to_array_fn(x),
+            remove_columns=train_dataset.column_names,
+            batched=True,
+            num_proc=1,
+        )
+        log_timestamp("Train: speech to array")
 
         train_dataset = train_dataset.map(
             lambda x: prepare_dataset(x, processor),
@@ -336,12 +345,14 @@ def main():
             eval_dataset = Dataset.from_pandas(dataset_eval_df)
             eval_dataset = eval_dataset.map(
                 lambda x: remove_special_characters(x, CHARS_TO_IGNORE, pattern_dot_decimal, train=False),
+                batched=True,
                 num_proc=1
             )
             log_timestamp("Eval: remove special characters")
 
             eval_dataset = eval_dataset.map(
                 speech_file_to_array_fn,
+                batched=True,
                 remove_columns=eval_dataset.column_names,
                 num_proc=1
             )
@@ -358,6 +369,7 @@ def main():
         test_dataset = Dataset.from_pandas(dataset_test_df)
         test_dataset = test_dataset.map(
             lambda x: remove_special_characters(x, CHARS_TO_IGNORE, pattern_dot_decimal, train=False),
+            batched=True,
             num_proc=1
         )
         log_timestamp("Test: speech to array")
