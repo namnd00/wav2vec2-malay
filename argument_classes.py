@@ -126,17 +126,9 @@ class DataTrainingArguments:
         default="./datasets/test",
         metadata={'help': "path to test directory"}
     )
-    vocab_path: Optional[str] = field(
-        default="./datasets/vocab.json",
-        metadata={'help': "path to vocab file"}
-    )
     overwrite_cache: bool = field(
         default=False,
         metadata={"help": "Overwrite the cached preprocessed datasets or not."},
-    )
-    preprocessing_num_workers: Optional[int] = field(
-        default=None,
-        metadata={"help": "The number of processes to use for the preprocessing."},
     )
     per_device_test_batch_size: Optional[int] = field(
         default=8, metadata={"help": "Batch size per GPU/TPU core/CPU for testing."}
