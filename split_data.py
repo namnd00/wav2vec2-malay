@@ -158,12 +158,12 @@ def rename_files_and_get_annotations(args):
 def split_batch(dataset_dir, sub_df, n_batch, prefix_batch):
     sub_df = sub_df.sample(frac=1).reset_index(drop=True)
     total_samples = len(sub_df)
-    print("total number of samples: ", total_samples)
+    print("Total number of samples: ", total_samples)
     df_list = np.array_split(sub_df, n_batch)
     for ix, df in enumerate(df_list):
         sub_samples = len(df)
         df.to_csv(f"{dataset_dir}/{prefix_batch}{str(ix + 1)}.csv", index=False)
-        logger.info(f"df-{str(ix + 1)}, number of sub-samples: {sub_samples}")
+        print(f"df-{str(ix + 1)}, number of sub-samples: {sub_samples}")
 
 
 def split_dataset(annotation_df, n_split, train_ratio):
@@ -174,7 +174,7 @@ def split_dataset(annotation_df, n_split, train_ratio):
     if n_split == 3:
         temp_test_csv = annotation_df[~msk]
         # get mask train to split temp train dataframe to train and val
-        msk_test = np.random.rand(len(temp_test_csv)) <= (1 - train_ratio) / 2
+        msk_test = np.random.rand(len(temp_test_csv)) <= 0.5
         # split temp train dataframe to train and val
         test_csv = temp_test_csv[msk_test]
         eval_csv = temp_test_csv[~msk_test]
@@ -220,11 +220,11 @@ def main():
     else:
         train_csv, test_csv = split_dataset(output_df, args.n_split, args.train_ratio)
         test_csv.to_csv(f'{args.dataset_dir}/test.csv', index=False)
-    logger.info(f"split dataset to {args.n_split} set")
+    print(f"split dataset to {args.n_split} set")
 
     if args.split_batch:
         split_batch(args.dataset_dir, train_csv, args.n_batch, args.prefix_batch)
-        logger.info(f"split dataset to {args.n_batch} batch")
+        print(f"split dataset to {args.n_batch} batch")
 
 
 if __name__ == "__main__":
