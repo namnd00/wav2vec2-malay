@@ -66,6 +66,10 @@ def parse_args():
                         default=20,
                         required=False,
                         help="int - max duration")
+    parser.add_argument('--rename',
+                        type=bool,
+                        required=True,
+                        help="bool - rename files in dataset dir?")
     parser.add_argument('--refine_data',
                         type=bool,
                         default=True,
@@ -107,8 +111,11 @@ def rename_files_and_get_annotations(args):
     if count_txt == count_wav:
         for i in tqdm(range(count_wav)):
             wav_file = wav_lst[i]
-            # temp_wav_file = "".join(wav_file.split(".")[:-1])
-            txt_file = f"{wav_file}.txt"
+            if args.rename:
+                temp_wav_file = "".join(wav_file.split(".")[:-1])
+            else:
+                temp_wav_file = wav_file
+            txt_file = f"{temp_wav_file}.txt"
             if wav_file is None:
                 logger.warning(f"{wav_file} not exist.")
                 continue
@@ -123,17 +130,17 @@ def rename_files_and_get_annotations(args):
             dst_txt = f"{text_dir}/{prefix_}.txt"
             dst_wav = f"{wav_dir}/{prefix_}.wav"
             if not os.path.exists(src_txt):
-                logger.info("Not exists: ", txt_file)
+                print("Not exists: ", txt_file)
                 continue
             if os.path.exists(dst_txt) and os.path.exists(dst_wav):
-                logger.info(f"Exist {dst_txt}, {dst_wav}")
+                print(f"Exist {dst_txt}, {dst_wav}")
                 continue
 
             os.renames(src_txt, dst_txt)
             os.renames(src_wav, dst_wav)
 
             if not os.path.exists(dst_txt):
-                logging.error("Not open file: ", dst_txt)
+                print("Not open file: ", dst_txt)
             with open(dst_txt, 'r') as f:
                 lines = " ".join(f.readlines())
                 dst_txt_lst.append(lines)
@@ -185,8 +192,10 @@ def get_duration_audio(wav_path):
 
 def main():
     args = parse_args()
-    data_df = rename_files_and_get_annotations(args)
-
+    if args.rename:
+        data_df = rename_files_and_get_annotations(args)
+    else:
+        data_df = args.data_csv
     output_df = None
     if args.refine_data:
         print("Size original: ", len(data_df))
