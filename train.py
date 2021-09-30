@@ -260,7 +260,7 @@ def main():
     # Set seed before initializing model.
     set_seed(training_args.seed)
 
-    if not Path(data_args.vocab_path).exists():
+    if not Path(VOCAB_PATH).exists():
         logger.error("Must import vocab")
 
     dataset_train_df = pd.read_csv(data_args.train_data_csv)
@@ -272,7 +272,7 @@ def main():
         train_dataset = Dataset.from_pandas(dataset_train_df)
         train_dataset = train_dataset.map(
             lambda x: remove_special_characters(x, CHARS_TO_IGNORE, pattern_dot_decimal, train=False),
-            num_proc=data_args.preprocessing_num_workers
+            num_proc=1,
         )
         log_timestamp("Train: remove special characters in transcripts")
 
@@ -281,7 +281,7 @@ def main():
             remove_columns=train_dataset.column_names,
             batch_size=training_args.per_device_train_batch_size,
             batched=True,
-            num_proc=data_args.preprocessing_num_workers,
+            num_proc=1,
         )
         log_timestamp("Train: prepare speech array")
         train_dataset.save_to_disk(data_args.train_data_dir)
@@ -298,14 +298,14 @@ def main():
             eval_dataset = Dataset.from_pandas(dataset_eval_df)
             eval_dataset = eval_dataset.map(
                 lambda x: remove_special_characters(x, CHARS_TO_IGNORE, pattern_dot_decimal, train=False),
-                num_proc=data_args.preprocessing_num_workers
+                num_proc=1
             )
             log_timestamp("Eval: remove special characters")
 
             eval_dataset = eval_dataset.map(
                 speech_file_to_array_fn,
                 remove_columns=eval_dataset.column_names,
-                num_proc=data_args.preprocessing_num_workers,
+                num_proc=1
             )
             log_timestamp("Eval: speech to array")
             train_dataset.save_to_disk(data_args.eval_data_dir)
@@ -320,7 +320,7 @@ def main():
         test_dataset = Dataset.from_pandas(dataset_test_df)
         test_dataset = test_dataset.map(
             lambda x: remove_special_characters(x, CHARS_TO_IGNORE, pattern_dot_decimal, train=False),
-            num_proc=data_args.preprocessing_num_workers
+            num_proc=1
         )
         log_timestamp("Test: speech to array")
         test_dataset.save_to_disk(data_args.test_data_dir)
