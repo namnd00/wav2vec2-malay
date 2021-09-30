@@ -16,7 +16,7 @@ import json
 import time
 import datasets
 
-chars_to_ignore_regex = ['"', "'", "*", "()", "[\]", "-", "`", "_", "+/=%|"]
+chars_to_ignore_regex = ['"', "'", "*", "()", "[\]", "\-", "`", "_", "+/=%|"]
 pattern_dot_decimal = "\S+\&\S+"
 CHARS_TO_IGNORE = f'[{"".join(chars_to_ignore_regex)}]'
 
