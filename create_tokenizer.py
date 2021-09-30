@@ -15,6 +15,8 @@ import argparse
 import json
 import time
 
+from datasets import Dataset
+
 chars_to_ignore_regex = '[\,\?\.\!\-\;\:\\"\$]'
 
 
