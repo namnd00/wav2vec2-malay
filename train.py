@@ -231,7 +231,7 @@ def main():
     VOCAB_PATH = f"{data_args.dataset_config_name}/vocab.json"
 
     # override default run name and log all args
-    wandb.init(project="wav2vec2-malay", config=wandb.config())
+    wandb.init(project="wav2vec2-malay", config=wandb.config)
 
     # Detecting last checkpoint.
     last_checkpoint = detect_and_get_last_checkpoint(training_args)
