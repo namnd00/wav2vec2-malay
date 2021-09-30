@@ -17,6 +17,9 @@ def remove_special_characters(batch, chars_to_ignore_regex, pattern_dot_decimal,
     batch["transcript"] = re.sub(chars_to_ignore_regex, ' ', batch["transcript"]).lower()
     if re.search(pattern_dot_decimal, batch["transcript"]):
         batch["transcript"] = re.sub("&", ' dan ', batch["transcript"])
+    else:
+        batch["transcript"] = re.sub("&", 'dan', batch["transcript"])
+
     if train:
         batch["target_text"] += " "
     return batch
