@@ -1,5 +1,6 @@
 import random
 import os
+import flask
 from flask import Flask, request, jsonify
 from predicts.wav2vec2_predict_services import Wav2vec2_Predict_Services
 
@@ -17,7 +18,7 @@ def predict():
         }
 	"""
 
-	# get file from POST request and save it
+	# get file from POST request and save itpp
 	audio_file = request.files["file"]
 	file_name = str(random.randint(0, 100000))
 	audio_file.save(file_name)

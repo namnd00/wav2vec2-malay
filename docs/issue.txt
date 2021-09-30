@@ -1,0 +1,4 @@
+https://github.com/boblef/auto_transcript   #"Speech To Text app with Flask"
+
+https://github.com/avinassh/pytorch-flask-api #"API for pytorch-flask"
+
