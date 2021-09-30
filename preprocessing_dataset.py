@@ -43,7 +43,7 @@ def filter_by_duration(batch):
 def prepare_dataset(batch, processor):
     # check that all files have the correct sampling rate
     assert (
-            len(set(batch["sampling_rate"])) == 1
+            batch["sampling_rate"] == 16000
     ), f"Make sure all inputs have the same sampling rate of {processor.feature_extractor.sampling_rate}."
     batch["input_values"] = processor(
         batch["speech"], sampling_rate=batch["sampling_rate"][0]
