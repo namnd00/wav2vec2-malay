@@ -137,7 +137,7 @@ def rename_files_and_get_annotations(args):
             with open(dst_txt, 'r') as f:
                 lines = " ".join(f.readlines())
                 dst_txt_lst.append(lines)
-                dst_wav_lst.append(f"datasets/{dst_wav}")
+                dst_wav_lst.append(f"{dst_wav}")
                 c += 1
     else:
         print("Failed")
