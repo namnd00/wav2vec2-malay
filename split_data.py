@@ -107,8 +107,8 @@ def rename_files_and_get_annotations(args):
     if count_txt == count_wav:
         for i in tqdm(range(count_wav)):
             wav_file = wav_lst[i]
-            temp_wav_file = "".join(wav_file.split(".")[:-1])
-            txt_file = f"{temp_wav_file}.txt"
+            # temp_wav_file = "".join(wav_file.split(".")[:-1])
+            txt_file = f"{wav_file}.txt"
             if wav_file is None:
                 logger.warning(f"{wav_file} not exist.")
                 continue
@@ -129,8 +129,8 @@ def rename_files_and_get_annotations(args):
                 logger.info(f"Exist {dst_txt}, {dst_wav}")
                 continue
 
-            os.rename(src_txt, dst_txt)
-            os.rename(src_wav, dst_wav)
+            os.renames(src_txt, dst_txt)
+            os.renames(src_wav, dst_wav)
 
             if not os.path.exists(dst_txt):
                 logging.error("Not open file: ", dst_txt)
