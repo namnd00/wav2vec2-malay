@@ -10,7 +10,7 @@ import logging
 import time
 from inspect import getframeinfo, stack
 
-# import wandb
+import wandb
 
 logger = logging.getLogger(__name__)
 
@@ -31,8 +31,8 @@ class Timer:
         if msg is None:
             caller = getframeinfo(stack()[1][0])
             msg = f"line {caller.lineno}"
-        # wandb.log({f"timestamps/{msg}": timestamp})
-        # wandb.log({f"durations/{msg}": duration})
+        wandb.log({f"timestamps/{msg}": timestamp})
+        wandb.log({f"durations/{msg}": duration})
         logger.info(
             f"*** TIMER *** - {msg} - Timestamp {timestamp:0.4f} seconds - Duration {duration:0.4f} seconds"
         )

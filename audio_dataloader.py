@@ -17,6 +17,8 @@ import numpy as np
 import pandas as pd
 import torch
 import torchaudio
+from torch.utils.data import DataLoader, Dataset
+
 from datasets import load_metric
 from torchaudio_augmentations import (RandomApply,
                                       PolarityInversion,
@@ -114,7 +116,7 @@ class DataCollatorCTCWithPadding:
         return batch
 
 
-class MalayAudioDataset:
+class MalayAudioDataset(Dataset):
     def __init__(
             self,
             annotation_df,
@@ -214,9 +216,9 @@ def parse_args():
 
 def demo():
     time_begin = time()
-    AUDIO_PATH = "/home/namndd3/Documents/wav2vec2-malay/tests/waves"
-    ANNOTATION_PATH = "/home/namndd3/Documents/wav2vec2-malay/tests/annotations.csv"
-    vocab_path = "/home/namndd3/Documents/wav2vec2-malay/tests/vocab.json"
+    AUDIO_PATH = "/home/namndd3/Documents/wav2vec2-malay/datasets/waves"
+    ANNOTATION_PATH = "/home/namndd3/Documents/wav2vec2-malay/datasets/annotations.csv"
+    vocab_path = "/home/namndd3/Documents/wav2vec2-malay/datasets/vocab.json"
 
     audio_processor = AudioProcessor(vocab_path=vocab_path)
     ANNOTATION_DF = pd.read_csv(ANNOTATION_PATH)
@@ -233,6 +235,8 @@ def demo():
                                       audio_processor=audio_processor)
 
     print(f"There are {len(malay_dataset)} samples in the datasets, data augmentation: {malay_dataset.audio_transforms}")
+
+    dataloader = DataLoader(dataset=malay_dataset, batch_size=8)
 
     processor = audio_processor.processor
     data_collator = DataCollatorCTCWithPadding(processor=processor, padding=True)
@@ -269,7 +273,7 @@ def demo():
 
     training_args = TrainingArguments(
         output_dir="src/wav2vec2-base-malay",
-        group_by_length=True,
+        group_by_length=False,
         per_device_train_batch_size=8,
         num_train_epochs=20,
         save_steps=500,
@@ -278,7 +282,8 @@ def demo():
         learning_rate=1e-4,
         weight_decay=0.005,
         warmup_steps=1000,
-        save_total_limit=2
+        save_total_limit=2,
+        report_to=['wandb']
     )
 
     trainer = Trainer(
@@ -296,4 +301,4 @@ def demo():
     print(f"{time_end - time_begin:02}")
     a = 1
 
-demo()
+# demo()

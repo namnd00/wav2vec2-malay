@@ -133,3 +133,4 @@ datasets/texts/
 tests/wandb/
 tests/wav2vec2-base-timit-demo
 src/wandb
+wandb/

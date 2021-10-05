@@ -19,14 +19,13 @@ import torch
 import transformers
 
 import logging
-# import wandb
+import wandb
 
 from audio_dataloader import MalayAudioDataset, AudioProcessor, DataCollatorCTCWithPadding
 from callbacks import LossNaNStoppingCallback, TimingCallback
 from datasets import Dataset
 from pathlib import Path
-from dataclasses import dataclass
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, Union
 from packaging import version
 from torch import nn
 from transformers.trainer_utils import (get_last_checkpoint,
@@ -36,7 +35,6 @@ from transformers import (
     Trainer,
     TrainingArguments,
     Wav2Vec2ForCTC,
-    Wav2Vec2Processor,
     set_seed,
 )
 
@@ -161,7 +159,7 @@ def main():
     VOCAB_PATH = f"{data_args.dataset_config_name}/vocab.json"
 
     # override default run name and log all args
-    # wandb.init(project="wav2vec2-malay", config=wandb.config)
+    wandb.init(project="wav2vec2-malay", config=wandb.config)
 
     # Detecting last checkpoint.
     last_checkpoint = detect_and_get_last_checkpoint(training_args)
@@ -301,7 +299,7 @@ def main():
         metrics = train_result.metrics
         metrics["train_samples"] = len(train_dataset)
 
-        # wandb.log({f"train/{k}": v for k, v in metrics.items()})
+        wandb.log({f"train/{k}": v for k, v in metrics.items()})
 
         trainer.log_metrics("train", metrics)
         trainer.save_metrics("train", metrics)
@@ -358,20 +356,20 @@ def main():
         result_df.to_csv(f"{data_args.dataset_config_name}/result_df.csv", index=False)
 
     metrics = {"cer": test_cer, "wer": test_wer}
-    # wandb.log({f"test/{k}": v for k, v in metrics.items()})
+    wandb.log({f"test/{k}": v for k, v in metrics.items()})
     trainer.save_metrics("test", metrics)
     logger.info(metrics)
 
     # save model files
-    # if not loss_nan_stopping_callback.stopped:
-    #     artifact = wandb.Artifact(
-    #         name=f"model-{wandb.run.id}", type="model", metadata={"cer": test_cer}
-    #     )
-    #     for f in Path(training_args.output_dir).iterdir():
-    #         if f.is_file():
-    #             artifact.add_file(str(f))
-    #     wandb.run.log_artifact(artifact)
-    #     log_timestamp("log artifacts")
+    if not loss_nan_stopping_callback.stopped:
+        artifact = wandb.Artifact(
+            name=f"model-{wandb.run.id}", type="model", metadata={"cer": test_cer}
+        )
+        for f in Path(training_args.output_dir).iterdir():
+            if f.is_file():
+                artifact.add_file(str(f))
+        wandb.run.log_artifact(artifact)
+        log_timestamp("log artifacts")
 
 
 if __name__ == "__main__":
