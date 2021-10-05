@@ -69,12 +69,6 @@ class ModelArguments:
                     "True``. "
         },
     )
-    gradient_checkpointing: Optional[bool] = field(
-        default=True,
-        metadata={
-            "help": "If True, use gradient checkpointing to save memory at the expense of slower backward pass."
-        },
-    )
     layerdrop: Optional[float] = field(
         default=0.0, metadata={"help": "The LayerDrop probability."}
     )
@@ -96,15 +90,18 @@ class DataTrainingArguments:
             "help": "The configuration name of the dataset to use (via the datasets library)."
         },
     )
+    dataset_dir: Optional[str] = field(
+        default="./datasets/waves",
+        metadata={
+            "help": "The path to directory contains audio wav"
+        },
+    )
+
     train_data_csv: Optional[str] = field(
-        default="./datasets/train_batch_1.csv",
+        default="./datasets/train.csv",
         metadata={
             "help": "The path of the train dataset csv"
         },
-    )
-    train_data_dir: Optional[str] = field(
-        default="./datasets/train_batch_1",
-        metadata={'help': "path to train directory"}
     )
     eval_data_csv: Optional[str] = field(
         default="./datasets/eval.csv",
@@ -112,40 +109,22 @@ class DataTrainingArguments:
             "help": "The path of the eval dataset csv"
         },
     )
-    eval_data_dir: Optional[str] = field(
-        default="./datasets/eval",
-        metadata={'help': "path to eval directory"}
-    )
     test_data_csv: Optional[str] = field(
         default="./datasets/test.csv",
         metadata={
             "help": "The path of the test dataset csv"
         },
     )
-    test_data_dir: Optional[str] = field(
-        default="./datasets/test",
-        metadata={'help': "path to test directory"}
-    )
     overwrite_cache: bool = field(
         default=False,
         metadata={"help": "Overwrite the cached preprocessed datasets or not."},
     )
-    per_device_test_batch_size: Optional[int] = field(
+    batch_size: Optional[int] = field(
         default=8, metadata={"help": "Batch size per GPU/TPU core/CPU for testing."}
     )
-    # have_augment_data: bool = field(
-    #     default=False,
-    #     metadata={"help": "Have augment data?"}
-    # )
-    # if have_augment_data:
-    #     num_augmented_samples: int = field(
-    #         default=8,
-    #         metadata={"help": "Number of augmented samples"}
-    #     )
-    # num_workers: int = field(
-    #     default=2,
-    #     metadata={"help": "Number of workers"}
-    # )
+    transform: Optional[bool] = field(
+        default=False, metadata={'help': "Transform audio?"}
+    )
 
 
 @dataclass

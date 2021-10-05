@@ -26,7 +26,6 @@ def parse_args():
     parser.add_argument('--split_batch',
                         default=True,
                         type=bool,
-                        required=True,
                         help="bool - split dataset to multiple batch?")
     parser.add_argument('--n_batch',
                         default=3,
@@ -45,11 +44,9 @@ def parse_args():
                         help="int - ratio of data to split to train/test or train/eval/test")
     parser.add_argument('--wav_dir',
                         type=str,
-                        required=True,
                         help="str - path to directory contain waves")
     parser.add_argument('--text_dir',
                         type=str,
-                        required=True,
                         help="str - path to directory contain text")
     parser.add_argument('--prefix_batch',
                         type=str,
@@ -68,6 +65,7 @@ def parse_args():
                         help="int - max duration")
     parser.add_argument('--rename',
                         type=bool,
+                        default=False,
                         required=True,
                         help="bool - rename files in dataset dir?")
     parser.add_argument('--refine_data',
@@ -199,7 +197,6 @@ def main():
         data_df = rename_files_and_get_annotations(args)
     else:
         data_df = args.data_csv
-    output_df = None
     if args.refine_data:
         print("Size original: ", len(data_df))
         audio_path_series = data_df['path']
@@ -212,6 +209,8 @@ def main():
         output_df = data_df[data_df['duration'].apply(lambda x: max_duration >= x >= min_duration)]
         print("Size after refining: ", len(output_df))
         output_df.to_csv(args.refined_data_csv, index=False)
+    else:
+        output_df = args.refined_data_csv
 
     if output_df is None:
         output_df = data_df
@@ -228,6 +227,8 @@ def main():
     if args.split_batch:
         split_batch(args.dataset_dir, train_csv, args.n_batch, args.prefix_batch)
         print(f"split dataset to {args.n_batch} batch")
+    else:
+        train_csv.to_csv(f'{args.dataset_dir}/train.csv', index=False)
 
 
 if __name__ == "__main__":

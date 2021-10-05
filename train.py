@@ -10,6 +10,7 @@ import pandas as pd
 import os
 import sys
 
+import torchaudio
 from torch.cuda import amp
 
 import datasets
@@ -18,8 +19,9 @@ import torch
 import transformers
 
 import logging
-import wandb
+# import wandb
 
+from audio_dataloader import MalayAudioDataset, AudioProcessor, DataCollatorCTCWithPadding
 from callbacks import LossNaNStoppingCallback, TimingCallback
 from datasets import Dataset
 from pathlib import Path
@@ -33,19 +35,12 @@ from transformers import (
     HfArgumentParser,
     Trainer,
     TrainingArguments,
-    Wav2Vec2CTCTokenizer,
-    Wav2Vec2FeatureExtractor,
     Wav2Vec2ForCTC,
     Wav2Vec2Processor,
-    TrainerCallback,
-    is_apex_available,
     set_seed,
 )
 
 from argument_classes import ModelArguments, DataTrainingArguments
-from preprocessing_dataset import (remove_special_characters,
-                                   prepare_dataset,
-                                   speech_file_to_array_fn)
 from utils import Timer
 
 logger = logging.getLogger(__name__)
@@ -54,75 +49,6 @@ log_timestamp = Timer()
 if version.parse(torch.__version__) >= version.parse("1.6"):
     _is_native_amp_available = True
     from torch.cuda.amp import autocast
-
-
-@dataclass
-class DataCollatorCTCWithPadding:
-    """
-    Data collator that will dynamically pad the inputs received.
-    Args:
-        processor (:class:`~transformers.Wav2Vec2Processor`)
-            The processor used for proccessing the data.
-        padding (:obj:`bool`, :obj:`str` or :class:`~transformers.tokenization_utils_base.PaddingStrategy`, `optional`, defaults to :obj:`True`):
-            Select a strategy to pad the returned sequences (according to the model's padding side and padding index)
-            among:
-            * :obj:`True` or :obj:`'longest'`: Pad to the longest sequence in the batch (or no padding if only a single
-              sequence if provided).
-            * :obj:`'max_length'`: Pad to a maximum length specified with the argument :obj:`max_length` or to the
-              maximum acceptable input length for the model if that argument is not provided.
-            * :obj:`False` or :obj:`'do_not_pad'` (default): No padding (i.e., can output a batch with sequences of
-              different lengths).
-        max_length (:obj:`int`, `optional`):
-            Maximum length of the ``input_values`` of the returned list and optionally padding length (see above).
-        max_length_labels (:obj:`int`, `optional`):
-            Maximum length of the ``labels`` returned list and optionally padding length (see above).
-        pad_to_multiple_of (:obj:`int`, `optional`):
-            If set will pad the sequence to a multiple of the provided value.
-            This is especially useful to enable the use of Tensor Cores on NVIDIA hardware with compute capability >=
-            7.5 (Volta).
-    """
-
-    processor: Wav2Vec2Processor
-    padding: Union[bool, str] = True
-    max_length: Optional[int] = None
-    max_length_labels: Optional[int] = None
-    pad_to_multiple_of: Optional[int] = None
-    pad_to_multiple_of_labels: Optional[int] = None
-
-    def __call__(
-            self, features: List[Dict[str, Union[List[int], torch.Tensor]]]
-    ) -> Dict[str, torch.Tensor]:
-        # split inputs and labels since they have to be of different lenghts and need
-        # different padding methods
-        input_features = [
-            {"input_values": feature["input_values"]} for feature in features
-        ]
-        label_features = [{"input_ids": feature["labels"]} for feature in features]
-
-        batch = self.processor.pad(
-            input_features,
-            padding=self.padding,
-            max_length=self.max_length,
-            pad_to_multiple_of=self.pad_to_multiple_of,
-            return_tensors="pt",
-        )
-        with self.processor.as_target_processor():
-            labels_batch = self.processor.pad(
-                label_features,
-                padding=self.padding,
-                max_length=self.max_length_labels,
-                pad_to_multiple_of=self.pad_to_multiple_of_labels,
-                return_tensors="pt",
-            )
-
-        # replace padding with -100 to ignore loss correctly
-        labels = labels_batch["input_ids"].masked_fill(
-            labels_batch.attention_mask.ne(1), -100
-        )
-
-        batch["labels"] = labels
-
-        return batch
 
 
 class CTCTrainer(Trainer):
@@ -199,6 +125,14 @@ def get_parser():
     return model_args, data_args, training_args
 
 
+def speech_file_to_array_fn(batch):
+    speech_array, sampling_rate = torchaudio.load(batch["path"])
+    batch["speech"] = speech_array
+    batch["sampling_rate"] = 16_000
+    batch["target_text"] = batch["transcript"]
+    return batch
+
+
 def detect_and_get_last_checkpoint(training_args):
     last_checkpoint = None
     if (
@@ -224,14 +158,10 @@ def main():
     # get args
     model_args, data_args, training_args = get_parser()
     # CONSTANTS
-    chars_to_ignore = ['"', "'", "*", "()", "^", "[\]", "\-", "`", "_", "+/=%|"]
-    pattern_dot_decimal = "\S+\&\S+"
-
-    CHARS_TO_IGNORE = f'[{"".join(chars_to_ignore)}]'
     VOCAB_PATH = f"{data_args.dataset_config_name}/vocab.json"
 
     # override default run name and log all args
-    wandb.init(project="wav2vec2-malay", config=wandb.config)
+    # wandb.init(project="wav2vec2-malay", config=wandb.config)
 
     # Detecting last checkpoint.
     last_checkpoint = detect_and_get_last_checkpoint(training_args)
@@ -260,27 +190,43 @@ def main():
     # Set seed before initializing model.
     set_seed(training_args.seed)
 
+    if not Path(VOCAB_PATH).exists():
+        logger.error("Must import vocab")
+
+    dataset_train_df = pd.read_csv(data_args.train_data_csv)
+    dataset_eval_df = pd.read_csv(data_args.eval_data_csv)
+    dataset_test_df = pd.read_csv(data_args.test_data_csv)
+
+    audio_processor = AudioProcessor(vocab_path=VOCAB_PATH)
+    audio_dir = data_args.dataset_dir
+    train_dataset = MalayAudioDataset(annotation_df=dataset_train_df,
+                                      audio_dir=audio_dir,
+                                      audio_transforms=data_args.transform,
+                                      audio_processor=audio_processor,
+                                      dataset='train')
+    log_timestamp("Load train dataset")
+
+    eval_dataset = MalayAudioDataset(annotation_df=dataset_eval_df,
+                                     audio_dir=audio_dir,
+                                     audio_processor=audio_processor,
+                                     dataset='eval')
+    log_timestamp("Load eval dataset")
+
+    n_train = len(dataset_train_df)
+    n_eval = len(dataset_eval_df)
+    n_test = len(dataset_test_df)
+    logger.info(f"- Train size: {n_train} "
+                f"- Val size: {n_eval} "
+                f"- Test size: {n_test}")
+
+    # Data collator
+    processor = audio_processor.processor
+    data_collator = DataCollatorCTCWithPadding(processor=processor, padding=True)
+    log_timestamp("create data collator")
     # Load pretrained model and tokenizer
-    #
     # Distributed training:
     # The .from_pretrained methods guarantee that only one local process can concurrently
     # download model & vocab.
-    tokenizer = Wav2Vec2CTCTokenizer(
-        VOCAB_PATH,
-        unk_token="[UNK]",
-        pad_token="[PAD]",
-        word_delimiter_token="|",
-    )
-    feature_extractor = Wav2Vec2FeatureExtractor(
-        feature_size=1,
-        sampling_rate=16_000,
-        padding_value=0.0,
-        do_normalize=True,
-        return_attention_mask=True,
-    )
-    processor = Wav2Vec2Processor(
-        feature_extractor=feature_extractor, tokenizer=tokenizer
-    )
 
     model = Wav2Vec2ForCTC.from_pretrained(
         model_args.model_name_or_path,
@@ -290,98 +236,12 @@ def main():
         hidden_dropout=model_args.hidden_dropout,
         feat_proj_dropout=model_args.feat_proj_dropout,
         mask_time_prob=model_args.mask_time_prob,
-        gradient_checkpointing=model_args.gradient_checkpointing,
         layerdrop=model_args.layerdrop,
         ctc_loss_reduction="mean",
         pad_token_id=processor.tokenizer.pad_token_id,
         vocab_size=len(processor.tokenizer),
     )
     log_timestamp("load model")
-
-    if not Path(VOCAB_PATH).exists():
-        logger.error("Must import vocab")
-
-    dataset_train_df = pd.read_csv(data_args.train_data_csv)
-
-    if Path(data_args.train_data_dir).exists():
-        train_dataset = datasets.load_from_disk(data_args.train_data_dir)
-        log_timestamp("Train: load pre-processed data")
-    else:
-        train_dataset = Dataset.from_pandas(dataset_train_df)
-        train_dataset = train_dataset.map(
-            lambda x: remove_special_characters(x, CHARS_TO_IGNORE, pattern_dot_decimal, train=False),
-            batch_size=training_args.per_device_train_batch_size,
-            num_proc=1,
-        )
-        log_timestamp("Train: remove special characters in transcripts")
-
-        train_dataset = train_dataset.map(
-            lambda x: speech_file_to_array_fn(x),
-            remove_columns=train_dataset.column_names,
-            batch_size=training_args.per_device_train_batch_size,
-            num_proc=1,
-        )
-        log_timestamp("Train: speech to array")
-
-        train_dataset = train_dataset.map(
-            lambda x: prepare_dataset(x, processor),
-            remove_columns=train_dataset.column_names,
-            batch_size=training_args.per_device_train_batch_size,
-            num_proc=1,
-        )
-        log_timestamp("Train: prepare speech array")
-        train_dataset.save_to_disk(data_args.train_data_dir)
-        log_timestamp("Train: save to disk")
-
-    dataset_eval_df = pd.read_csv(data_args.eval_data_csv)
-
-    eval_dataset = None
-    if training_args.do_eval:
-        if Path(data_args.eval_data_dir).exists():
-            eval_dataset = datasets.load_from_disk(data_args.eval_data_dir)
-            log_timestamp("Eval: load pre-processed data")
-        else:
-            eval_dataset = Dataset.from_pandas(dataset_eval_df)
-            eval_dataset = eval_dataset.map(
-                lambda x: remove_special_characters(x, CHARS_TO_IGNORE, pattern_dot_decimal, train=False),
-                batch_size=training_args.per_device_eval_batch_size,
-                num_proc=1
-            )
-            log_timestamp("Eval: remove special characters")
-
-            eval_dataset = eval_dataset.map(
-                speech_file_to_array_fn,
-                batch_size=training_args.per_device_eval_batch_size,
-                remove_columns=eval_dataset.column_names,
-                num_proc=1
-            )
-            log_timestamp("Eval: speech to array")
-            train_dataset.save_to_disk(data_args.eval_data_dir)
-            log_timestamp("Train: save to disk")
-
-    dataset_test_df = pd.read_csv(data_args.test_data_csv)
-
-    if Path(data_args.test_data_dir).exists():
-        test_dataset = datasets.load_from_disk(data_args.test_data_dir)
-        log_timestamp("Test: load pre-processed data")
-    else:
-        test_dataset = Dataset.from_pandas(dataset_test_df)
-        test_dataset = test_dataset.map(
-            lambda x: remove_special_characters(x, CHARS_TO_IGNORE, pattern_dot_decimal, train=False),
-            batch_size=training_args.per_device_eval_batch_size,
-            num_proc=1
-        )
-        log_timestamp("Test: speech to array")
-        test_dataset.save_to_disk(data_args.test_data_dir)
-        log_timestamp("Test: save to disk")
-
-    n_train = len(dataset_train_df)
-    n_eval = len(dataset_eval_df)
-    n_test = len(dataset_test_df)
-    logger.info(f"- Train size: {n_train} "
-                f"- Val size: {n_eval} "
-                f"- Test size: {n_test}")
-
     # Metric
     cer_metric = datasets.load_metric("cer")
     # we use a custom WER that considers punctuation
@@ -405,10 +265,6 @@ def main():
     if model_args.freeze_feature_extractor:
         model.freeze_feature_extractor()
         log_timestamp("freeze feature extractor")
-
-    # Data collator
-    data_collator = DataCollatorCTCWithPadding(processor=processor, padding=True)
-    log_timestamp("create data collator")
 
     # Initialize our Trainer
     trainer = Trainer(
@@ -445,7 +301,7 @@ def main():
         metrics = train_result.metrics
         metrics["train_samples"] = len(train_dataset)
 
-        wandb.log({f"train/{k}": v for k, v in metrics.items()})
+        # wandb.log({f"train/{k}": v for k, v in metrics.items()})
 
         trainer.log_metrics("train", metrics)
         trainer.save_metrics("train", metrics)
@@ -453,6 +309,14 @@ def main():
 
     # Final test metrics
     logger.info("*** Test ***")
+    test_dataset = Dataset.from_pandas(dataset_test_df)
+    test_dataset = test_dataset.map(
+        lambda x: speech_file_to_array_fn(x),
+        batch_size=training_args.batch_size,
+        num_proc=1
+    )
+    log_timestamp("Load test dataset")
+
     result_dict = None
     if loss_nan_stopping_callback.stopped:
         test_cer, test_wer = 1.0, 2.0
@@ -477,7 +341,7 @@ def main():
         # no need to cache mapped test_dataset
         datasets.set_caching_enabled(False)
         result = test_dataset.map(
-            evaluate, batch_size=training_args.per_device_eval_batch_size
+            evaluate, batch_size=training_args.batch_size
         )
         log_timestamp("get test predictions")
         test_cer = cer_metric.compute(
@@ -494,20 +358,20 @@ def main():
         result_df.to_csv(f"{data_args.dataset_config_name}/result_df.csv", index=False)
 
     metrics = {"cer": test_cer, "wer": test_wer}
-    wandb.log({f"test/{k}": v for k, v in metrics.items()})
+    # wandb.log({f"test/{k}": v for k, v in metrics.items()})
     trainer.save_metrics("test", metrics)
     logger.info(metrics)
 
     # save model files
-    if not loss_nan_stopping_callback.stopped:
-        artifact = wandb.Artifact(
-            name=f"model-{wandb.run.id}", type="model", metadata={"cer": test_cer}
-        )
-        for f in Path(training_args.output_dir).iterdir():
-            if f.is_file():
-                artifact.add_file(str(f))
-        wandb.run.log_artifact(artifact)
-        log_timestamp("log artifacts")
+    # if not loss_nan_stopping_callback.stopped:
+    #     artifact = wandb.Artifact(
+    #         name=f"model-{wandb.run.id}", type="model", metadata={"cer": test_cer}
+    #     )
+    #     for f in Path(training_args.output_dir).iterdir():
+    #         if f.is_file():
+    #             artifact.add_file(str(f))
+    #     wandb.run.log_artifact(artifact)
+    #     log_timestamp("log artifacts")
 
 
 if __name__ == "__main__":

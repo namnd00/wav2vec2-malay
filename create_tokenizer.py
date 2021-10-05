@@ -32,7 +32,7 @@ def extract_all_chars(batch):
     return {"vocab": vocab, "all_text": [all_text]}
 
 
-def create_tokenizer(dataframe: pd.DataFrame) -> Dict:
+def create_tokenizer(dataframe: pd.DataFrame) -> (Dict, pd.DataFrame):
     """
     :param dataframe:
     :return:
@@ -45,7 +45,7 @@ def create_tokenizer(dataframe: pd.DataFrame) -> Dict:
     chain = itertools.chain.from_iterable(vocabs['vocab'])
     time.sleep(2)
     vocab_list = list(set(list(chain)))
-    return {v: k for k, v in enumerate(vocab_list)}
+    return {v: k for k, v in enumerate(vocab_list)}, data
 
 
 if __name__ == "__main__":
@@ -62,7 +62,7 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
     df = pd.read_csv(args.data_csv, encoding='utf-8')
-    vocab_dict = create_tokenizer(df)
+    vocab_dict, data = create_tokenizer(df)
     vocab_dict["|"] = vocab_dict[" "]
     del vocab_dict[" "]
     vocab_dict["[UNK]"] = len(vocab_dict)
@@ -70,3 +70,4 @@ if __name__ == "__main__":
     Path(args.path_json_output).parent.mkdir(parents=True, exist_ok=True)
     with open(args.path_json_output, 'w') as vocab_file:
         json.dump(vocab_dict, vocab_file)
+    data.to_csv(args.data_csv, index=False)
