@@ -37,6 +37,9 @@ class BaseDataLoader:
         self.index = 0
         return self
 
+    def __len__(self):
+        return len(self.dataset)
+
     def __next__(self):
         if self.index >= len(self.dataset):
             raise StopIteration

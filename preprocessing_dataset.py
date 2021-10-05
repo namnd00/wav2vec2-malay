@@ -26,7 +26,7 @@ def remove_special_characters(batch, chars_to_ignore_regex, pattern_dot_decimal,
 
 
 def speech_file_to_array_fn(batch):
-    speech_array, sampling_rate = torchaudio.load(batch["path"])
+    speech_array, sampling_rate = torchaudio.load("../tests/waves/"+batch["path"])
     batch["speech"] = speech_array
     batch["sampling_rate"] = 16_000
     batch["target_text"] = batch["transcript"]

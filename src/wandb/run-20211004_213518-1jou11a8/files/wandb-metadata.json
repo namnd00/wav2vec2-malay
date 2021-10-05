@@ -1,0 +1,24 @@
+{
+    "os": "Linux-5.11.0-37-generic-x86_64-with-glibc2.17",
+    "python": "3.8.11",
+    "heartbeatAt": "2021-10-04T14:35:21.731532",
+    "startedAt": "2021-10-04T14:35:18.637654",
+    "docker": null,
+    "gpu": "NVIDIA GeForce 920M",
+    "gpu_count": 1,
+    "cpu_count": 4,
+    "cuda": null,
+    "args": [],
+    "state": "running",
+    "program": "/projects/wav2vec2-malay/src/audio_dataloader.py",
+    "codePath": "src/audio_dataloader.py",
+    "git": {
+        "remote": "https://github.com/nam-nd-d3/wav2vec2-malay",
+        "commit": "7d429624bf6ba33c933dc0b311e750b8eac43f0e"
+    },
+    "email": null,
+    "root": "/projects/wav2vec2-malay",
+    "host": "namndd3-Inspiron-5558",
+    "username": "namndd3",
+    "executable": "/home/namndd3/anaconda3/envs/nam_env/bin/python"
+}

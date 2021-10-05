@@ -9,6 +9,9 @@ Desc:
 import pandas as pd
 import os
 import sys
+
+from torch.cuda import amp
+
 import datasets
 import numpy as np
 import torch
@@ -47,9 +50,6 @@ from utils import Timer
 
 logger = logging.getLogger(__name__)
 log_timestamp = Timer()
-
-if is_apex_available():
-    from apex import amp
 
 if version.parse(torch.__version__) >= version.parse("1.6"):
     _is_native_amp_available = True
@@ -411,7 +411,7 @@ def main():
     log_timestamp("create data collator")
 
     # Initialize our Trainer
-    trainer = CTCTrainer(
+    trainer = Trainer(
         model=model,
         data_collator=data_collator,
         args=training_args,

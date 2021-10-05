@@ -79,12 +79,17 @@ def parse_args():
                         type=str,
                         required=True,
                         help="str - refine dataset csv directory path")
+    parser.add_argument('--add_ext',
+                        default=False,
+                        type=bool,
+                        required=False,
+                        help="bool - have extention .wav?")
 
     return parser.parse_args()
 
 
 def calc_checksum(f):
-    return str(hashlib.sha3_512(f.encode('utf-8')).hexdigest()[0:8])
+    return str(hashlib.sha3_512(f.encode('utf-8')).hexdigest()[0:32])
 
 
 def chunks(lst, n):
@@ -108,46 +113,44 @@ def rename_files_and_get_annotations(args):
     c = 0
     dst_txt_lst = []
     dst_wav_lst = []
-    if count_txt == count_wav:
-        for i in tqdm(range(count_wav)):
-            wav_file = wav_lst[i]
-            if args.rename:
-                temp_wav_file = "".join(wav_file.split(".")[:-1])
-            else:
-                temp_wav_file = wav_file
-            txt_file = f"{temp_wav_file}.txt"
-            if wav_file is None:
-                logger.warning(f"{wav_file} not exist.")
-                continue
-            if txt_file is None:
-                logger.warning(f"{txt_file} not exist.")
-                continue
-            src_txt = f"{text_dir}/{txt_file}"
-            src_wav = f"{wav_dir}/{wav_file}"
 
-            prefix_ = str(calc_checksum(wav_file))
-            # prefix_ = f"fwav_{(i + 1):06}"
-            dst_txt = f"{text_dir}/{prefix_}.txt"
-            dst_wav = f"{wav_dir}/{prefix_}.wav"
-            if not os.path.exists(src_txt):
-                print("Not exists: ", txt_file)
-                continue
-            if os.path.exists(dst_txt) and os.path.exists(dst_wav):
-                print(f"Exist {dst_txt}, {dst_wav}")
-                continue
+    for i in tqdm(range(count_wav)):
+        wav_file = wav_lst[i]
+        if args.add_ext:
+            temp_wav_file = wav_file
+        else:
+            temp_wav_file = os.path.splitext(wav_file)[0]
+        txt_file = f"{temp_wav_file}.txt"
+        if wav_file is None:
+            logger.warning(f"{wav_file} not exist.")
+            continue
+        if txt_file is None:
+            logger.warning(f"{txt_file} not exist.")
+            continue
+        src_txt = f"{text_dir}/{txt_file}"
+        src_wav = f"{wav_dir}/{wav_file}"
 
-            os.renames(src_txt, dst_txt)
-            os.renames(src_wav, dst_wav)
+        prefix_ = str(calc_checksum(wav_file))
+        # prefix_ = f"fwav_{(i + 1):06}"
+        dst_txt = f"{text_dir}/{prefix_}.txt"
+        dst_wav = f"{wav_dir}/{prefix_}.wav"
+        if not os.path.exists(src_txt):
+            print("Not exists: ", txt_file)
+            continue
+        if os.path.exists(dst_txt) and os.path.exists(dst_wav):
+            print(f"Exist {dst_txt}, {dst_wav}")
+            continue
 
-            if not os.path.exists(dst_txt):
-                print("Not open file: ", dst_txt)
-            with open(dst_txt, 'r') as f:
-                lines = " ".join(f.readlines())
-                dst_txt_lst.append(lines)
-                dst_wav_lst.append(f"{dst_wav}")
-                c += 1
-    else:
-        print("Failed")
+        os.renames(src_txt, dst_txt)
+        os.renames(src_wav, dst_wav)
+
+        if not os.path.exists(dst_txt):
+            print("Not open file: ", dst_txt)
+        with open(dst_txt, 'r') as f:
+            lines = " ".join(f.readlines())
+            dst_txt_lst.append(lines)
+            dst_wav_lst.append(f"{dst_wav}")
+            c += 1
     print("Total: ", c)
     assert len(dst_txt_lst) == len(dst_wav_lst)
     sub_df = pd.DataFrame(data={'path': dst_wav_lst, 'transcript': dst_txt_lst})
