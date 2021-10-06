@@ -6,10 +6,11 @@ https://github.com/boblef/auto_transcript
 
 https://github.com/avinassh/pytorch-flask-api 
 
-- Language model inference code by Kenneth Heafield (kenlm at kheafield.com)
-
 - wav2vec2-kenlm
+
 https://github.com/farisalasmary/wav2vec2-kenlm
+
+- Language model inference code by Kenneth Heafield (kenlm at kheafield.com)
 
 https://github.com/kpu/kenlm 
 
