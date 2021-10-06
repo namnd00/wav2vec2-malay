@@ -128,9 +128,9 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-    tokenizer = Wav2Vec2CTCTokenizer(args.path_vocab, unk_token="[UNK]", pad_token="[PAD]", word_delimiter_token="|")
+    tokenizer = Wav2Vec2CTCTokenizer(VOCAB_DIR, unk_token="[UNK]", pad_token="[PAD]", word_delimiter_token="|")
     feature_extractor = Wav2Vec2FeatureExtractor(feature_size=1, sampling_rate=16000, padding_value=0.0,
-                                                 do_normalize=True, return_attention_mask=False)
+                                                 do_normalize=True, return_attention_mask=True)
     processor = Wav2Vec2Processor(feature_extractor=feature_extractor, tokenizer=tokenizer)
 
     train_data = AudioDataset(csv_file=args.train_data_csv, root_dir=ROOT_DIR, processor=processor)
@@ -158,16 +158,16 @@ if __name__ == "__main__":
     training_args = TrainingArguments(
         output_dir="My_model",
         group_by_length=True,
-        per_device_train_batch_size=4,
+        per_device_train_batch_size=8,
         evaluation_strategy="steps",
-        num_train_epochs=args.num_epochs,
+        num_train_epochs=3,
         fp16=True,
-        save_steps=500,
-        eval_steps=2000,
-        logging_steps=500,
+        save_steps=3500,
+        eval_steps=3500,
+        logging_steps=3500,
         learning_rate=5e-5,
         weight_decay=0.005,
-        warmup_steps=1000,
+        warmup_steps=3500,
         save_total_limit=1,
     )
     print("---Load pretrain model complete---")
@@ -183,6 +183,3 @@ if __name__ == "__main__":
     print("-----------Training-----------")
     trainer.train()
     trainer.save_model("My_model")
-
-
-
