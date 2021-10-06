@@ -8,6 +8,9 @@ https://github.com/avinassh/pytorch-flask-api
 
 - Language model inference code by Kenneth Heafield (kenlm at kheafield.com)
 
+- wav2vec2-kenlm
+https://github.com/farisalasmary/wav2vec2-kenlm
+
 https://github.com/kpu/kenlm 
 
 - ctcdecode
