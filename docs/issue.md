@@ -14,6 +14,10 @@ https://github.com/farisalasmary/wav2vec2-kenlm
 
 https://github.com/kpu/kenlm 
 
+- Tedlium Language Models
+
+https://kaldi-asr.org/models/m5
+
 - ctcdecode
 
 https://github.com/parlance/ctcdecode
