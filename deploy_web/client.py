@@ -4,8 +4,8 @@ import time
 URL = "http://127.0.0.1:5000/predict"
 
 
-# audio file we'd like to send for predicting keyword
-FILE_PATH = "D:/speed_to_text/code/wav2vec2-malay/tests/waves/fp6ABAjcXPI.0050.wav"
+# audio file we'd like to send for predicting keyword/home/sanhlx/PycharmProjects/wav2vec2-malay/tests
+FILE_PATH = "/tests/waves/fp6ABAjcXPI.0035.wav"
 
 
 if __name__ == "__main__":

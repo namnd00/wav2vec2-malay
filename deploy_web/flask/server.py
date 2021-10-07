@@ -2,7 +2,7 @@ import random
 import os
 import flask
 from flask import Flask, request, jsonify
-from deploy_web.predicts.wav2vec2_predict_services import Wav2vec2_Predict_Services
+from predicts.wav2vec2_predict_services import Wav2vec2_Predict_Services
 
 
 # instantiate flask app
