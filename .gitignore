@@ -130,7 +130,7 @@ dmypy.json
 .idea/
 datasets/waves/
 datasets/texts/
-tests/wandb/
-tests/wav2vec2-base-timit-demo
-src/wandb
+examples/wandb/
+examples/wav2vec2-base-timit-demo
+utils/wandb
 wandb/

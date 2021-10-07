@@ -1,6 +1,6 @@
 # coding:utf-8
 """
-Name : utils.py
+Name : timer.py
 Author : Nam Nguyen
 Contact : nam.nd.d3@gmail.com
 Time    : 9/26/2021 5:08 PM

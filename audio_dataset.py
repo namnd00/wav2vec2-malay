@@ -1,6 +1,6 @@
 # coding:utf-8
 """
-Name : audio_dataloader.py
+Name : audio_dataset.py
 Author : Nam Nguyen
 Contact : nam.nd.d3@gmail.com
 Time    : 9/24/2021 10:16 AM
@@ -272,7 +272,7 @@ def demo():
         return {"wer": wer}
 
     training_args = TrainingArguments(
-        output_dir="src/wav2vec2-base-malay",
+        output_dir="utils/wav2vec2-base-malay",
         group_by_length=False,
         per_device_train_batch_size=8,
         num_train_epochs=20,

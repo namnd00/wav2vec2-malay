@@ -21,7 +21,7 @@ import transformers
 import logging
 import wandb
 
-from audio_dataloader import MalayAudioDataset, AudioProcessor, DataCollatorCTCWithPadding
+from audio_dataset import MalayAudioDataset, AudioProcessor, DataCollatorCTCWithPadding
 from callbacks import LossNaNStoppingCallback, TimingCallback
 from datasets import Dataset
 from pathlib import Path

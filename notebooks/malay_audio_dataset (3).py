@@ -1,6 +1,6 @@
 # coding:utf-8
 """
-Name : audio_dataloader.py
+Name : audio_dataset.py
 Author : Nam Nguyen
 Contact : nam.nd.d3@gmail.com
 Time    : 9/24/2021 10:16 AM
@@ -88,9 +88,9 @@ def collate_fn(batch):
 
 
 if __name__ == "__main__":
-    AUDIO_PATH = "/content/drive/MyDrive/wav2vec2-malay/tests/waves"
-    ANNOTATION_PATH = "/content/drive/MyDrive/wav2vec2-malay/tests/annotations.csv"
-    AUG_DIR = "/content/drive/MyDrive/wav2vec2-malay/tests/aug_dir"
+    AUDIO_PATH = "/content/drive/MyDrive/wav2vec2-malay/examples/waves"
+    ANNOTATION_PATH = "/content/drive/MyDrive/wav2vec2-malay/examples/annotations.csv"
+    AUG_DIR = "/content/drive/MyDrive/wav2vec2-malay/examples/aug_dir"
 
     if torch.cuda.is_available():
         device = "cuda"
