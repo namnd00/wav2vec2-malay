@@ -12,6 +12,11 @@ from typing import List, Optional
 
 
 def list_field(default=None, metadata=None):
+    """
+    @param default:
+    @param metadata:
+    @return:
+    """
     return field(default_factory=lambda: default, metadata=metadata)
 
 

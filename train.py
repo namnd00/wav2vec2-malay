@@ -39,7 +39,7 @@ from transformers import (
 )
 
 from argument_classes import ModelArguments, DataTrainingArguments
-from utils import Timer
+from utils.timer import Timer
 
 logger = logging.getLogger(__name__)
 log_timestamp = Timer()
@@ -243,7 +243,7 @@ def main():
     # Metric
     cer_metric = datasets.load_metric("cer")
     # we use a custom WER that considers punctuation
-    wer_metric = datasets.load_metric("metrics/wer_punctuation.py")
+    wer_metric = datasets.load_metric("wer")
 
     def compute_metrics(pred):
         pred_logits = pred.predictions

@@ -59,7 +59,8 @@ class AudioProcessor:
         self.tokenizer = Wav2Vec2CTCTokenizer(self.vocab_path,
                                               unk_token=unk_token,
                                               pad_token=pad_token,
-                                              word_delimiter_token=word_delimiter_token)
+                                              word_delimiter_token=word_delimiter_token,
+                                              )
         self.feature_extractor = Wav2Vec2FeatureExtractor(feature_size=feature_size,
                                                           sampling_rate=sampling_rate,
                                                           padding_value=padding_value,
@@ -152,7 +153,7 @@ class MalayAudioDataset(Dataset):
         signal, sr = torchaudio.load(audio_sample_path)
         signal = self._resample_if_necessary(signal, sr)
         if self.audio_transforms and self.dataset == 'train':
-            _transforms = self._get_audio_transforms()
+            _transforms = self._get_audio_transforms(sr)
             transform = Compose(transforms=_transforms)
             signal = transform(signal)
         signal = self._prepare_signal(signal, sr)
@@ -174,19 +175,20 @@ class MalayAudioDataset(Dataset):
             signal = audio_resample(signal)
         return signal
 
-    def _get_audio_transforms(self):
-        num_samples = self.sample_rate * random.randint(1, 5)
+    @staticmethod
+    def _get_audio_transforms(sr):
+        num_samples = sr * random.randint(1, 5)
         return [
             RandomApply([PolarityInversion()], p=0.8),
             RandomApply([Noise(min_snr=0.1, max_snr=0.5)], p=0.3),
             RandomApply([Gain()], p=0.3),
-            HighLowPass(sample_rate=self.sample_rate),
+            HighLowPass(sample_rate=sr),
             RandomApply([PitchShift(
                 n_samples=num_samples,
-                sample_rate=self.sample_rate
+                sample_rate=sr
             )], p=0.4),
-            RandomApply([Delay(sample_rate=self.sample_rate)], p=0.5),
-            RandomApply([Reverb(sample_rate=self.sample_rate)], p=0.3)
+            RandomApply([Delay(sample_rate=sr)], p=0.5),
+            RandomApply([Reverb(sample_rate=sr)], p=0.3)
         ]
 
     def _prepare_signal(self, speech_signal, sr):
@@ -216,9 +218,9 @@ def parse_args():
 
 def demo():
     time_begin = time()
-    AUDIO_PATH = "/home/namndd3/Documents/wav2vec2-malay/datasets/waves"
-    ANNOTATION_PATH = "/home/namndd3/Documents/wav2vec2-malay/datasets/annotations.csv"
-    vocab_path = "/home/namndd3/Documents/wav2vec2-malay/datasets/vocab.json"
+    AUDIO_PATH = "/home/namndd3/Documents/wav2vec2-malay/examples/datasets/waves"
+    ANNOTATION_PATH = "/home/namndd3/Documents/wav2vec2-malay/examples/datasets/annotations.csv"
+    vocab_path = "/home/namndd3/Documents/wav2vec2-malay/examples/datasets/vocab.json"
 
     audio_processor = AudioProcessor(vocab_path=vocab_path)
     ANNOTATION_DF = pd.read_csv(ANNOTATION_PATH)
@@ -231,12 +233,14 @@ def demo():
 
     malay_dataset = MalayAudioDataset(annotation_df=ANNOTATION_DF,
                                       audio_dir=AUDIO_PATH,
-                                      audio_transforms=False,
-                                      audio_processor=audio_processor)
+                                      audio_transforms=True,
+                                      audio_processor=audio_processor,
+                                      dataset='train')
 
-    print(f"There are {len(malay_dataset)} samples in the datasets, data augmentation: {malay_dataset.audio_transforms}")
+    print(
+        f"There are {len(malay_dataset)} samples in the datasets, data augmentation: {malay_dataset.audio_transforms}")
 
-    dataloader = DataLoader(dataset=malay_dataset, batch_size=8)
+    # dataloader = DataLoader(dataset=malay_dataset, batch_size=8)
 
     processor = audio_processor.processor
     data_collator = DataCollatorCTCWithPadding(processor=processor, padding=True)
@@ -301,4 +305,5 @@ def demo():
     print(f"{time_end - time_begin:02}")
     a = 1
 
-# demo()
+
+demo()

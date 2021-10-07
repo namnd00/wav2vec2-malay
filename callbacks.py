@@ -11,7 +11,7 @@ import logging
 import torch
 from transformers import TrainerCallback
 
-from utils import Timer
+from utils.timer import Timer
 
 logger = logging.getLogger(__name__)
 log_timestamp = Timer()
