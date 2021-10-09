@@ -7,32 +7,31 @@ Time    : 9/26/2021 5:06 PM
 Desc:
 """
 import logging
+import math
 
-import torch
 from transformers import TrainerCallback
-
 from utils.timer import Timer
 
 logger = logging.getLogger(__name__)
 log_timestamp = Timer()
 
 
-class LossNaNStoppingCallback(TrainerCallback):
-    """
-    Stops training when loss is NaN.
-
-    Loss is accessed through last logged values so it is useful to set
-    :class:`~transformers.TrainingArguments` argument `logging_steps` to 1.
-    """
-
-    def __init__(self):
-        self.stopped = False
-
-    def on_log(self, args, state, control, logs=None, **kwargs):
-        if torch.isnan(logs.get("loss", 0.0)):
-            self.stopped = True
-            control.should_training_stop = True
-            logger.info("Loss NaN detected, terminating training")
+# class LossNaNStoppingCallback(TrainerCallback):
+#     """
+#     Stops training when loss is NaN.
+#
+#     Loss is accessed through last logged values so it is useful to set
+#     :class:`~transformers.TrainingArguments` argument `logging_steps` to 1.
+#     """
+#
+#     def __init__(self):
+#         self.stopped = False
+#
+#     def on_log(self, args, state, control, logs=None, **kwargs):
+#         if math.isnan(logs.get("loss", 0.0)):
+#             self.stopped = True
+#             control.should_training_stop = True
+#             logger.info("Loss NaN detected, terminating training")
 
 
 class TimingCallback(TrainerCallback):

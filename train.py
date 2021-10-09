@@ -22,7 +22,7 @@ import logging
 import wandb
 
 from audio_dataset import MalayAudioDataset, AudioProcessor, DataCollatorCTCWithPadding
-from callbacks import LossNaNStoppingCallback, TimingCallback
+from callbacks import TimingCallback
 from datasets import Dataset
 from pathlib import Path
 from typing import Any, Dict, Union
@@ -275,9 +275,7 @@ def main():
         tokenizer=processor.feature_extractor,
     )
 
-    loss_nan_stopping_callback = LossNaNStoppingCallback()
     timing_callback = TimingCallback()
-    trainer.add_callback(loss_nan_stopping_callback)
     trainer.add_callback(timing_callback)
     log_timestamp("setup trainer")
     if training_args.do_train:
@@ -315,42 +313,36 @@ def main():
     )
     log_timestamp("Load test dataset")
 
-    result_dict = None
-    if loss_nan_stopping_callback.stopped:
-        test_cer, test_wer = 1.0, 2.0
-        logger.info(
-            "Loss NaN detected, typically resulting in bad WER & CER so we won't calculate them."
+    def evaluate(batch):
+        inputs = processor(
+            batch["speech"], sampling_rate=16_000, return_tensors="pt", padding=True
         )
-    else:
-        def evaluate(batch):
-            inputs = processor(
-                batch["speech"], sampling_rate=16_000, return_tensors="pt", padding=True
-            )
-            with torch.no_grad():
-                logits = model(
-                    inputs.input_values.to("cuda"),
-                    attention_mask=inputs.attention_mask.to("cuda"),
-                ).logits
-            pred_ids = torch.argmax(logits, dim=-1)
-            batch["pred_strings"] = processor.batch_decode(pred_ids)
-            return batch
+        with torch.no_grad():
+            logits = model(
+                inputs.input_values.to("cuda"),
+                attention_mask=inputs.attention_mask.to("cuda"),
+            ).logits
+        pred_ids = torch.argmax(logits, dim=-1)
+        batch["pred_strings"] = processor.batch_decode(pred_ids)
+        return batch
 
-        model.to("cuda")
-        # no need to cache mapped test_dataset
-        datasets.set_caching_enabled(False)
-        result = test_dataset.map(
-            evaluate, batch_size=training_args.batch_size
-        )
-        log_timestamp("get test predictions")
-        test_cer = cer_metric.compute(
-            predictions=result["pred_strings"], references=result["target_text"]
-        )
-        test_wer = wer_metric.compute(
-            predictions=result["pred_strings"], references=result["target_text"]
-        )
-        log_timestamp("compute test metrics")
+    model.to("cuda")
+    # no need to cache mapped test_dataset
+    datasets.set_caching_enabled(False)
+    result = test_dataset.map(
+        evaluate, batch_size=training_args.batch_size
+    )
+    log_timestamp("get test predictions")
+    test_cer = cer_metric.compute(
+        predictions=result["pred_strings"], references=result["target_text"]
+    )
+    test_wer = wer_metric.compute(
+        predictions=result["pred_strings"], references=result["target_text"]
+    )
+    log_timestamp("compute test metrics")
 
-        result_dict = {'labels': test_dataset['target_text'], 'predictions': result['pred_strings']}
+    result_dict = {'labels': test_dataset['target_text'], 'predictions': result['pred_strings']}
+
     if result_dict is not None:
         result_df = pd.DataFrame(data=result_dict)
         result_df.to_csv(f"{data_args.dataset_config_name}/result_df.csv", index=False)
@@ -361,15 +353,14 @@ def main():
     logger.info(metrics)
 
     # save model files
-    if not loss_nan_stopping_callback.stopped:
-        artifact = wandb.Artifact(
-            name=f"model-{wandb.run.id}", type="model", metadata={"cer": test_cer}
-        )
-        for f in Path(training_args.output_dir).iterdir():
-            if f.is_file():
-                artifact.add_file(str(f))
-        wandb.run.log_artifact(artifact)
-        log_timestamp("log artifacts")
+    artifact = wandb.Artifact(
+        name=f"model-{wandb.run.id}", type="model", metadata={"cer": test_cer}
+    )
+    for f in Path(training_args.output_dir).iterdir():
+        if f.is_file():
+            artifact.add_file(str(f))
+    wandb.run.log_artifact(artifact)
+    log_timestamp("log artifacts")
 
 
 if __name__ == "__main__":

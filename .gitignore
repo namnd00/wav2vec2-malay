@@ -136,3 +136,5 @@ examples/wandb/
 examples/wav2vec2-base-timit-demo
 utils/wandb
 wandb/
+language_model/
+ctcdecode/

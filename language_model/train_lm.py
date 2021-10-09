@@ -1,6 +1,6 @@
 # coding:utf-8
 """
-Name    : train_language_model.py
+Name    : optimize_lm.py
 Author  : Nam Nguyen
 Contact : nam.nd.d3@gmail.com
 Time    : 07/10/2021
@@ -37,8 +37,7 @@ def main():
         os.makedirs(args.output_path)
 
     with open(args.transcript_file, encoding="utf-8") as f:
-        train = f.read().upper().splitlines()
-        train = [d.split('\t')[1] for d in train]
+        train = f.read().lower().splitlines()
 
     chars = [list(d.replace(' ', '')) for d in train]
     chars = [j for i in chars for j in i]
@@ -46,7 +45,7 @@ def main():
 
     if args.additional_file is not None:
         with open(args.additional_file, encoding="utf-8") as f:
-            train += f.read().upper().splitlines()
+            train += f.read().lower().splitlines()
 
     vocabs = set([])
     for line in tqdm(train):
@@ -60,9 +59,9 @@ def main():
     vocab_path = os.path.join(args.output_path, 'vocabs.txt')
     lexicon_path = os.path.join(args.output_path, 'lexicon.txt')
     train_text_path = os.path.join(args.output_path, 'world_lm_data.train')
-    train_text_path_train = train_text_path.replace('world_lm_data.train', 'kenlm.train')
-    model_arpa = train_text_path.replace('world_lm_data.train', 'kenlm.arpa')
-    model_bin = train_text_path.replace('world_lm_data.train', 'lm.bin')
+    train_text_path_train = os.path.join(args.output_path, 'kenlm.train')
+    model_arpa = os.path.join(args.output_path, '4gram_big.arpa')
+    model_bin  = os.path.join(args.output_path, 'lm.bin')
     kenlm_path_train = os.path.join(abspath(args.kenlm_path), 'build/bin/lmplz')
     kenlm_path_convert = os.path.join(abspath(args.kenlm_path), 'build/bin/build_binary')
     kenlm_path_query = os.path.join(abspath(args.kenlm_path), 'build/bin/query')
