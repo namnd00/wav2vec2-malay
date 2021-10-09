@@ -1,0 +1,24 @@
+
+1. train wav2vec2 -> train với tập dataset train, sau đó validation với tập dataset eval:
+		+ lr: 5e-4
+		+ lr_schedule: cosine_with_restarts
+		+ train/val/test: 8/1/1
+		+ batch_size: 4
+		+ epoch: 20
+=> checkpoint, tokenizer
+
+2. Train language model với tập transcript.txt và corpus.json bằng kenlm
+=> lm.bin và lexicon.txt
+
+3. Sau khi có checkpoint của wav2vec2 -> Optimize language model với lm.bin, lexicon.txt và checkpoint wav2vec2
+					-> Tìm alpha và beta để wer min.
+					+ trial = 10
+=> tạo ra file config_ctc.yaml
+
+4. Evaluate trên dataset eval theo decode:
+	+ Tính WER của wav2vec2
+	+ Tính WER của wav2vec2 + CTC
+	+ Tính WER của wav2vec2 + CTC + LM
+
+5. Đóng gói và chuẩn bị cho deployfine
+
