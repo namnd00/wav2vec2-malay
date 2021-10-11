@@ -75,7 +75,7 @@ class ModelArguments:
         },
     )
     layerdrop: Optional[float] = field(
-        default=0.0, metadata={"help": "The LayerDrop probability."}
+        default=0.1, metadata={"help": "The LayerDrop probability."}
     )
 
 

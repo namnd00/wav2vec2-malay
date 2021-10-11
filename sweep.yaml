@@ -44,12 +44,11 @@ command:
   - 4
   - "--per_device_eval_batch_size"
   - 4
-  - "eval_steps"
+  - "--eval_steps"
   - 400
   - "--fp16"
   - "--freeze_feature_extractor"
   - "--group_by_length"
-  - "--gradient_checkpointing"
   - "--do_train"
   - "--do_eval"
   - "--save_total_limit"
