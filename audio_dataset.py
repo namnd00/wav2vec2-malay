@@ -167,7 +167,7 @@ class MalayAudioDataset(Dataset):
         return path
 
     def _get_labels(self, index):
-        return self.annotation_df.iloc[index, 1].strip().lower()
+        return self.annotation_df.iloc[index, 1].strip()
 
     def _resample_if_necessary(self, signal, sr):
         if sr != self.sample_rate:

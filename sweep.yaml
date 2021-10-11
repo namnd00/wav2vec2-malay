@@ -39,7 +39,7 @@ command:
   - "./model"
   - "--overwrite_output_dir"
   - "--num_train_epochs"
-  - 20
+  - 4
   - "--per_device_train_batch_size"
   - 4
   - "--per_device_eval_batch_size"
