@@ -56,6 +56,4 @@ command:
   - 1
   - "--save_strategy"
   - "epoch"
-  - "--evaluation_strategy"
-  - "epoch"
   - ${args}
