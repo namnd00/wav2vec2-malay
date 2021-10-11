@@ -78,10 +78,6 @@ class ModelArguments:
         default=0.1, metadata={"help": "The LayerDrop probability."}
     )
 
-    logging_steps: int = field(
-        default=500, metadata={"help": "The logging steps."}
-    )
-
 
 @dataclass
 class DataTrainingArguments:
