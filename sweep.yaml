@@ -39,11 +39,11 @@ command:
   - "./wav2vec_models"
   - "--overwrite_output_dir"
   - "--num_train_epochs"
-  - 20
+  - 10
   - "--per_device_train_batch_size"
-  - 4
+  - 2
   - "--per_device_eval_batch_size"
-  - 4
+  - 2
   - "--eval_steps"
   - 2704
   - "--save_steps"

@@ -126,7 +126,7 @@ class DataTrainingArguments:
     )
     
     transform: Optional[bool] = field(
-        default=False, metadata={'help': "Transform audio?"}
+        default=True, metadata={'help': "Transform audio?"}
     )
 
 

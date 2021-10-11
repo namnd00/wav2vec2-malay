@@ -149,7 +149,7 @@ class MalayAudioDataset(Dataset):
         signal, sr = torchaudio.load(audio_sample_path)
         signal = self._resample_if_necessary(signal, sr)
         if self.audio_transforms and self.dataset == 'train':
-            _transforms = self._get_audio_transforms(sr)
+            _transforms = _get_audio_transforms(sr)
             transform = Compose(transforms=_transforms)
             signal = transform(signal)
         signal = self._prepare_signal(signal, sr)
@@ -185,16 +185,16 @@ class MalayAudioDataset(Dataset):
             labels = self.audio_processor(transcript).input_ids
         return labels
 
-    @staticmethod
-    def _get_audio_transforms(sr):
-        return [
-            RandomApply([PolarityInversion()], p=0.8),
-            RandomApply([Noise(min_snr=0.1, max_snr=0.5)], p=0.3),
-            RandomApply([Gain()], p=0.3),
-            HighLowPass(sample_rate=sr),
-            RandomApply([Delay(sample_rate=sr)], p=0.5),
-            RandomApply([Reverb(sample_rate=sr)], p=0.3)
-        ]
+
+def _get_audio_transforms(sr):
+    return [
+        RandomApply([PolarityInversion()], p=0.8),
+        RandomApply([Noise(min_snr=0.1, max_snr=0.5)], p=0.3),
+        RandomApply([Gain()], p=0.3),
+        HighLowPass(sample_rate=sr),
+        RandomApply([Delay(sample_rate=sr)], p=0.5),
+        RandomApply([Reverb(sample_rate=sr)], p=0.3)
+    ]
 
 
 def parse_args():
