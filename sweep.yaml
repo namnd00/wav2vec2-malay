@@ -33,7 +33,7 @@ command:
   - "./datasets/train.csv"
   - "--eval_data_csv"
   - "./datasets/eval.csv"
-  - "--test_data_csv"	
+  - "--test_data_csv"
   - "./datasets/test.csv"
   - "--output_dir"
   - "./model"
