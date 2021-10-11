@@ -55,9 +55,9 @@ command:
   - "--do_eval"
   - "--save_total_limit"
   - 1
-  - "logging_steps"
+  - "--logging_steps"
   - 2704
-  - "eval_strategy"
+  - "--eval_strategy"
   - "steps"
   - "--save_strategy"
   - "epoch"
