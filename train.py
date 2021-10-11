@@ -219,6 +219,7 @@ def main():
 
     # Data collator
     processor = audio_processor.processor
+    processor.tokenizer.save_pretrained(training_args.output_dir)
     data_collator = DataCollatorCTCWithPadding(processor=processor, padding=True)
     log_timestamp("create data collator")
     # Load pretrained model and tokenizer
@@ -308,7 +309,7 @@ def main():
     test_dataset = Dataset.from_pandas(dataset_test_df)
     test_dataset = test_dataset.map(
         lambda x: speech_file_to_array_fn(x),
-        batch_size=training_args.batch_size,
+        batch_size=training_args.per_device_eval_batch_size,
         num_proc=1
     )
     log_timestamp("Load test dataset")
@@ -330,7 +331,7 @@ def main():
     # no need to cache mapped test_dataset
     datasets.set_caching_enabled(False)
     result = test_dataset.map(
-        evaluate, batch_size=training_args.batch_size
+        evaluate, batch_size=training_args.per_device_eval_batch_size
     )
     log_timestamp("get test predictions")
     test_cer = cer_metric.compute(

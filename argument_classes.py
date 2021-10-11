@@ -124,9 +124,15 @@ class DataTrainingArguments:
         default=False,
         metadata={"help": "Overwrite the cached preprocessed datasets or not."},
     )
-    batch_size: Optional[int] = field(
-        default=8, metadata={"help": "Batch size per GPU/TPU core/CPU for testing."}
+    
+    per_device_train_batch_size: Optional[int] = field(
+        default=4, metadata={"help": "Batch size per GPU/TPU core/CPU for testing."}
     )
+    
+    per_device_eval_batch_size: Optional[int] = field(
+        default=4, metadata={"help": "Batch size per GPU/TPU core/CPU for testing."}
+    )
+    
     transform: Optional[bool] = field(
         default=False, metadata={'help': "Transform audio?"}
     )
@@ -136,7 +142,7 @@ class DataTrainingArguments:
 class ParameterArguments:
     learning_rate: Optional[float] = field(
         default=5e-5,
-        metadata={"help": "The learning rate"},
+        metadata={"help": "The	 learning rate"},
     )
     weight_decay: Optional[float] = field(
         default=0.005,

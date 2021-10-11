@@ -138,3 +138,4 @@ utils/wandb
 wandb/
 language_model/
 ctcdecode/
+model/

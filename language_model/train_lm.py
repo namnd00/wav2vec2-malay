@@ -61,7 +61,7 @@ def main():
     train_text_path = os.path.join(args.output_path, 'world_lm_data.train')
     train_text_path_train = os.path.join(args.output_path, 'kenlm.train')
     model_arpa = os.path.join(args.output_path, '4gram_big.arpa')
-    model_bin  = os.path.join(args.output_path, 'lm.bin')
+    model_bin = os.path.join(args.output_path, 'lm.bin')
     kenlm_path_train = os.path.join(abspath(args.kenlm_path), 'build/bin/lmplz')
     kenlm_path_convert = os.path.join(abspath(args.kenlm_path), 'build/bin/build_binary')
     kenlm_path_query = os.path.join(abspath(args.kenlm_path), 'build/bin/query')
