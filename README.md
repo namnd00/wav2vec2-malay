@@ -59,8 +59,13 @@
 ## Train language model with KenLM:
 
 * install KenLM:
+* 
   `mkdir ./malay_lm and cd ./malay_lm`
+  
   `git clone https://github.com/kpu/kenlm.git`
-  `%cd kenlm`
+  
+  `cd kenlm`
+  
   `cmake . `
+  
   `make -j 4`
