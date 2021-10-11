@@ -125,14 +125,6 @@ class DataTrainingArguments:
         metadata={"help": "Overwrite the cached preprocessed datasets or not."},
     )
     
-    per_device_train_batch_size: Optional[int] = field(
-        default=4, metadata={"help": "Batch size per GPU/TPU core/CPU for testing."}
-    )
-    
-    per_device_eval_batch_size: Optional[int] = field(
-        default=4, metadata={"help": "Batch size per GPU/TPU core/CPU for testing."}
-    )
-    
     transform: Optional[bool] = field(
         default=False, metadata={'help': "Transform audio?"}
     )
