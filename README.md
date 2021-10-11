@@ -60,7 +60,7 @@
 
 * install KenLM:
 * 
-  `mkdir ./malay_lm and cd ./malay_lm`
+  `mkdir ./language_model and cd ./language_model`
   
   `git clone https://github.com/kpu/kenlm.git`
   
