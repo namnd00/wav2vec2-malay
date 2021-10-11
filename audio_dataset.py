@@ -26,7 +26,7 @@ from torchaudio_augmentations import (RandomApply,
                                       Gain,
                                       HighLowPass,
                                       Delay,
-                                      compose, PitchShift, Reverb, Compose)
+                                      Reverb, Compose)
 
 from typing import (Dict,
                     List,
@@ -149,11 +149,11 @@ class MalayAudioDataset(Dataset):
         signal, sr = torchaudio.load(audio_sample_path)
         signal = self._resample_if_necessary(signal, sr)
         if self.audio_transforms and self.dataset == 'train':
-            _transforms = _get_audio_transforms(sr)
+            _transforms = self._get_audio_transforms(sr)
             transform = Compose(transforms=_transforms)
             signal = transform(signal)
-        signal = _prepare_signal(self.audio_processor, signal, sr)
-        labels = _prepare_label(self.audio_processor, labels)
+        signal = self._prepare_signal(signal, sr)
+        labels = self._prepare_label(labels)
 
         return {'input_values': signal, "labels": labels}
 
@@ -171,37 +171,30 @@ class MalayAudioDataset(Dataset):
             signal = audio_resample(signal)
         return signal
 
+    def _prepare_signal(self, speech_signal, sr):
+        # check that all files have the correct sampling rate
+        assert (
+                sr == 16_000
+        ), f"Make sure all inputs have the same sampling rate of {self.audio_processor.feature_extractor.sampling_rate}."
 
-def _prepare_signal(audio_processor, speech_signal, sr):
-    # check that all files have the correct sampling rate
-    assert (
-            sr == 16_000
-    ), f"Make sure all inputs have the same sampling rate of {audio_processor.feature_extractor.sampling_rate}."
+        input_values = self.audio_processor(speech_signal, sampling_rate=self.sample_rate).input_values
+        return input_values
 
-    input_values = audio_processor(speech_signal, sampling_rate=sr).input_values
-    return input_values
+    def _prepare_label(self, transcript):
+        with self.audio_processor.as_target_processor():
+            labels = self.audio_processor(transcript).input_ids
+        return labels
 
-
-def _prepare_label(audio_processor, transcript):
-    with audio_processor.as_target_processor():
-        labels = audio_processor(transcript).input_ids
-    return labels
-
-
-def _get_audio_transforms(sr):
-    num_samples = sr * random.randint(1, 5)
-    return [
-        RandomApply([PolarityInversion()], p=0.8),
-        RandomApply([Noise(min_snr=0.1, max_snr=0.5)], p=0.3),
-        RandomApply([Gain()], p=0.3),
-        HighLowPass(sample_rate=sr),
-        RandomApply([PitchShift(
-            n_samples=num_samples,
-            sample_rate=sr
-        )], p=0.4),
-        RandomApply([Delay(sample_rate=sr)], p=0.5),
-        RandomApply([Reverb(sample_rate=sr)], p=0.3)
-    ]
+    @staticmethod
+    def _get_audio_transforms(sr):
+        return [
+            RandomApply([PolarityInversion()], p=0.8),
+            RandomApply([Noise(min_snr=0.1, max_snr=0.5)], p=0.3),
+            RandomApply([Gain()], p=0.3),
+            HighLowPass(sample_rate=sr),
+            RandomApply([Delay(sample_rate=sr)], p=0.5),
+            RandomApply([Reverb(sample_rate=sr)], p=0.3)
+        ]
 
 
 def parse_args():

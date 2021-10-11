@@ -10,10 +10,10 @@ parameters:
     - 5e-4
   weight_decay:
     values:
-    - 0.005
+    - 0.001
   warmup_steps:
     values:
-    - 800
+    - 10000
   gradient_accumulation_steps:
     values:
     - 1
@@ -36,16 +36,18 @@ command:
   - "--test_data_csv"
   - "./datasets/test.csv"
   - "--output_dir"
-  - "./model"
+  - "./wav2vec_models"
   - "--overwrite_output_dir"
   - "--num_train_epochs"
-  - 10
+  - 20
   - "--per_device_train_batch_size"
-  - 2
+  - 4
   - "--per_device_eval_batch_size"
-  - 2
+  - 4
   - "--eval_steps"
-  - 400
+  - 2704
+  - "--save_steps"
+  - 2704
   - "--fp16"
   - "--freeze_feature_extractor"
   - "--group_by_length"
