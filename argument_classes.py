@@ -81,9 +81,6 @@ class ModelArguments:
     logging_steps: int = field(
         default=500, metadata={"help": "The logging steps."}
     )
-    evaluation_strategy: str = field(
-        default="steps", metadata={"help": "The evaluation strategy."}
-    )
 
 
 @dataclass
