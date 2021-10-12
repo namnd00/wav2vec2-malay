@@ -11,15 +11,13 @@ import os
 import torch
 import librosa
 import yaml
-import numpy as np
 
 from ctcdecode import CTCBeamDecoder
-
 from transformers import Wav2Vec2ForCTC, Wav2Vec2Processor
 from argparse import ArgumentParser, RawTextHelpFormatter
 
 DESCRIPTION = """
- Prifysgol Bangor University
+ Decode for language models
 """
 
 

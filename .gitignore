@@ -133,6 +133,8 @@ datasets/output-wav
 datasets/*.zip
 datasets/*.py
 datasets/*.ipynb
+datasets/*.tar.xz
+datasets/fold*
 datasets/.ipynb_checkpoints
 wandb/
 src/language_model/lm

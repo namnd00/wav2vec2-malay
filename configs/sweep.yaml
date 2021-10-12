@@ -1,4 +1,4 @@
-program: ../src/train
+program: src/train
 project: wav2vec4malay
 method: random
 metric:
@@ -7,11 +7,11 @@ metric:
 parameters:
   learning_rate:
     values:
-    - 5e-4
+    - 5e-5
   weight_decay:
     values:
     - 0.005
-  warmup_steps:
+  	warmup_steps:
     values:
     - 10000
   gradient_accumulation_steps:
@@ -26,28 +26,25 @@ command:
   - "--model_name_or_path"
   - "facebook/wav2vec2-large-xlsr-53"
   - "--dataset_config_name"
-  - "../datasets"
+  - "datasets"
   - "--dataset_dir"
-  - "../datasets/waves"
+  - "datasets/waves"
   - "--train_data_csv"
-  - "../datasets/train.csv"
+  - "datasets/train.csv"
   - "--eval_data_csv"
-  - "../datasets/eval.csv"
+  - "datasets/eval.csv"
   - "--test_data_csv"
-  - "../datasets/test.csv"
+  - "datasets/test.csv"
   - "--output_dir"
-  - "../wav2vec_models"
-  - "--overwrite_output_dir"
+  - "pretrained_models/wav2vec2_models"
   - "--num_train_epochs"
-  - 10
+  - 20
   - "--per_device_train_batch_size"
   - 2
   - "--per_device_eval_batch_size"
   - 2
   - "--eval_steps"
-  - 2704
-  - "--save_steps"
-  - 2704
+  - 1000
   - "--fp16"
   - "--freeze_feature_extractor"
   - "--group_by_length"
@@ -56,7 +53,7 @@ command:
   - "--save_total_limit"
   - 1
   - "--logging_steps"
-  - 2704
+  - 1000
   - "--evaluation_strategy"
   - "steps"
   - "--save_strategy"

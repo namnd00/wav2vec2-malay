@@ -141,7 +141,7 @@ class ParameterArguments:
         metadata={"help": "The weight decay"},
     )
     warmup_steps: Optional[float] = field(
-        default=1000,
+        default=10000,
         metadata={"help": "The warmup steps"},
     )
     gradient_accumulation_steps: Optional[float] = field(
