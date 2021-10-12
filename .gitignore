@@ -131,11 +131,11 @@ dmypy.json
 datasets/waves/
 datasets/texts/
 datasets/*.zip
+datasets/*.py
+datasets/*.ipynb
 datasets/.ipynb_checkpoints
-examples/wandb/
-examples/wav2vec2-base-timit-demo
-utils/wandb
 wandb/
-language_model/
-ctcdecode/
-model/
+src/language_model/lm
+src/metrics/wer_punctuation.py.lock
+pretrained_models/checkpoint
+datasets/wiki_corpus.json

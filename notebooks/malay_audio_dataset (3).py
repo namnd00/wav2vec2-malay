@@ -88,9 +88,9 @@ def collate_fn(batch):
 
 
 if __name__ == "__main__":
-    AUDIO_PATH = "/content/drive/MyDrive/wav2vec2-malay/examples/waves"
-    ANNOTATION_PATH = "/content/drive/MyDrive/wav2vec2-malay/examples/annotations.csv"
-    AUG_DIR = "/content/drive/MyDrive/wav2vec2-malay/examples/aug_dir"
+    AUDIO_PATH = "/content/drive/MyDrive/src/examples/waves"
+    ANNOTATION_PATH = "/content/drive/MyDrive/src/examples/annotations.csv"
+    AUG_DIR = "/content/drive/MyDrive/src/examples/aug_dir"
 
     if torch.cuda.is_available():
         device = "cuda"

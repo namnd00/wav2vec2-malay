@@ -1,0 +1,64 @@
+program: ../src/train
+project: wav2vec4malay
+method: random
+metric:
+  name: wer
+  goal: minimize
+parameters:
+  learning_rate:
+    values:
+    - 5e-4
+  weight_decay:
+    values:
+    - 0.005
+  warmup_steps:
+    values:
+    - 10000
+  gradient_accumulation_steps:
+    values:
+    - 1
+  lr_scheduler_type:
+    values:
+    - cosine_with_restarts
+command:
+  - python
+  - ${program}
+  - "--model_name_or_path"
+  - "facebook/wav2vec2-large-xlsr-53"
+  - "--dataset_config_name"
+  - "../datasets"
+  - "--dataset_dir"
+  - "../datasets/waves"
+  - "--train_data_csv"
+  - "../datasets/train.csv"
+  - "--eval_data_csv"
+  - "../datasets/eval.csv"
+  - "--test_data_csv"
+  - "../datasets/test.csv"
+  - "--output_dir"
+  - "../wav2vec_models"
+  - "--overwrite_output_dir"
+  - "--num_train_epochs"
+  - 10
+  - "--per_device_train_batch_size"
+  - 2
+  - "--per_device_eval_batch_size"
+  - 2
+  - "--eval_steps"
+  - 2704
+  - "--save_steps"
+  - 2704
+  - "--fp16"
+  - "--freeze_feature_extractor"
+  - "--group_by_length"
+  - "--do_train"
+  - "--do_eval"
+  - "--save_total_limit"
+  - 1
+  - "--logging_steps"
+  - 2704
+  - "--evaluation_strategy"
+  - "steps"
+  - "--save_strategy"
+  - "epoch"
+  - ${args}

@@ -55,17 +55,3 @@
 * launch an agent against the sweep, count_number(default=1)
 
   `wandb agent --count count_number my_sweep_id`
-  
-## Train language model with KenLM:
-
-* install KenLM:
-* 
-  `mkdir ./language_model and cd ./language_model`
-  
-  `git clone https://github.com/kpu/kenlm.git`
-  
-  `cd kenlm`
-  
-  `cmake . `
-  
-  `make -j 4`

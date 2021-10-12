@@ -1,0 +1,1 @@
+python train_lm.py --output_path "./malay_lm" --additional_file "./wiki_corpus.json" --kenlm_path "./kenlm" --transcript_file "../datasets/transcripts.txt" --ngram 4

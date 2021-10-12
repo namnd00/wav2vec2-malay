@@ -1,1 +1,0 @@
-python split_data.py --dataset_dir "./datasets" --data_csv "./datasets/submissions.csv" --n_split 3 --train_ratio 0.8 --split_batch False --refine_data False --rename False --wav_dir "./datasets/output-wav" --text_dir "./datasets/output-text" --refined_data_csv "datasets/annotations.csv"
