@@ -231,6 +231,7 @@ def main():
 
     # Final test metrics
     logger.info("*** Test ***")
+    dataset_test_df['path'] = data_args.dataset_dir + "/" + dataset_test_df['path']
     test_dataset = Dataset.from_pandas(dataset_test_df)
     test_dataset = test_dataset.map(
         lambda x: speech_file_to_array_fn(x),
