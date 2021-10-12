@@ -21,15 +21,6 @@ def parse_args():
                         type=str,
                         required=True,
                         help="str - csv directory path")
-    parser.add_argument('--split_batch',
-                        default=True,
-                        type=bool,
-                        help="bool - split dataset to multiple batch?")
-    parser.add_argument('--n_batch',
-                        default=3,
-                        type=int,
-                        required=False,
-                        help="int - number of batch")
     parser.add_argument('--n_split',
                         default=3,
                         type=int,
@@ -46,11 +37,6 @@ def parse_args():
     parser.add_argument('--text_dir',
                         type=str,
                         help="str - path to directory contain text")
-    parser.add_argument('--prefix_batch',
-                        type=str,
-                        default='train_batch_',
-                        required=False,
-                        help="str - prefix of file batch, i.e: batch_0.csv")
     parser.add_argument('--min_duration',
                         type=int,
                         default=1,
@@ -63,7 +49,7 @@ def parse_args():
                         help="int - max duration")
     parser.add_argument('--rename',
                         type=bool,
-                        default=False,
+                        default=True,
                         required=True,
                         help="bool - rename files in dataset dir?")
     parser.add_argument('--refine_data',
@@ -75,11 +61,6 @@ def parse_args():
                         type=str,
                         required=True,
                         help="str - refine dataset csv directory path")
-    parser.add_argument('--add_ext',
-                        default=False,
-                        type=bool,
-                        required=False,
-                        help="bool - have extention .wav?")
 
     return parser.parse_args()
 
@@ -104,19 +85,26 @@ def rename_files_and_get_annotations(args):
     wav_lst = os.listdir(wav_dir)
 
     count_txt = len(text_lst)
-    count_wav = len(wav_lst)
 
     c = 0
     dst_txt_lst = []
     dst_wav_lst = []
 
-    for i in tqdm(range(count_wav)):
-        wav_file = wav_lst[i]
-        if args.add_ext:
-            temp_wav_file = wav_file
+    for i in tqdm(range(count_txt)):
+        txt_file = text_lst[i]
+        if not ".txt" in txt_file:
+            continue
+        # fwav.001.wav.txt
+        # fwav.001.txt
+        temp_wav_file = txt_file.split(".txt")[0]
+        # fwav.001.wav
+        if ".wav" in txt_file:
+            # fwav.001.wav
+            wav_file = temp_wav_file
         else:
-            temp_wav_file = os.path.splitext(wav_file)[0]
-        txt_file = f"{temp_wav_file}.txt"
+            # fwav.001
+            wav_file = f"{temp_wav_file}.wav"
+
         if wav_file is None:
             logger.warning(f"{wav_file} not exist.")
             continue
@@ -127,14 +115,15 @@ def rename_files_and_get_annotations(args):
         src_wav = f"{wav_dir}/{wav_file}"
 
         prefix_ = str(calc_checksum(wav_file))
+        wav_path = f"{prefix_}.wav"
         # prefix_ = f"fwav_{(i + 1):06}"
         dst_txt = f"{text_dir}/{prefix_}.txt"
         dst_wav = f"{wav_dir}/{prefix_}.wav"
         if not os.path.exists(src_txt):
-            print("Not exists: ", txt_file)
+            print(f"Not exists: {src_txt}")
             continue
-        if os.path.exists(dst_txt) and os.path.exists(dst_wav):
-            print(f"Exist {dst_txt}, {dst_wav}")
+        if not os.path.exists(src_wav):
+            print(f"Not exists: {src_wav}")
             continue
 
         os.renames(src_txt, dst_txt)
@@ -145,24 +134,13 @@ def rename_files_and_get_annotations(args):
         with open(dst_txt, 'r') as f:
             lines = " ".join(f.readlines())
             dst_txt_lst.append(lines)
-            dst_wav_lst.append(f"{dst_wav}")
+            dst_wav_lst.append(wav_path)
             c += 1
     print("Total: ", c)
     assert len(dst_txt_lst) == len(dst_wav_lst)
     sub_df = pd.DataFrame(data={'path': dst_wav_lst, 'transcript': dst_txt_lst})
     sub_df.to_csv(args.data_csv, index=False)
     return sub_df
-
-
-def split_batch(dataset_dir, sub_df, n_batch, prefix_batch):
-    sub_df = sub_df.sample(frac=1).reset_index(drop=True)
-    total_samples = len(sub_df)
-    print("Total number of samples: ", total_samples)
-    df_list = np.array_split(sub_df, n_batch)
-    for ix, df in enumerate(df_list):
-        sub_samples = len(df)
-        df.to_csv(f"{dataset_dir}/{prefix_batch}{str(ix + 1)}.csv", index=False)
-        print(f"df-{str(ix + 1)}, number of sub-samples: {sub_samples}")
 
 
 def split_dataset(annotation_df, n_split, train_ratio):
@@ -197,13 +175,14 @@ def main():
         data_df = args.data_csv
     if args.refine_data:
         print("Size original: ", len(data_df))
-        audio_path_series = data_df['path']
+        audio_path_series = args.wav_dir + data_df['path']
         data_df['duration'] = audio_path_series.apply(get_duration_audio)
 
         max_duration = args.max_duration
         min_duration = args.min_duration
         assert max_duration > min_duration
-
+        
+        print(f"Refining data follow duration: [{min_duration}, {max_duration}]")
         output_df = data_df[data_df['duration'].apply(lambda x: max_duration >= x >= min_duration)]
         print("Size after refining: ", len(output_df))
         output_df.to_csv(args.refined_data_csv, index=False)
@@ -222,11 +201,7 @@ def main():
         test_csv.to_csv(f'{args.dataset_dir}/test.csv', index=False)
     print(f"split dataset to {args.n_split} set")
 
-    if args.split_batch:
-        split_batch(args.dataset_dir, train_csv, args.n_batch, args.prefix_batch)
-        print(f"split dataset to {args.n_batch} batch")
-    else:
-        train_csv.to_csv(f'{args.dataset_dir}/train.csv', index=False)
+    train_csv.to_csv(f'{args.dataset_dir}/train.csv', index=False)
 
 
 if __name__ == "__main__":

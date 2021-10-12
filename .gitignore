@@ -128,8 +128,8 @@ dmypy.json
 # Pyre type checker
 .pyre/
 .idea/
-datasets/waves/
-datasets/texts/
+datasets/output-text
+datasets/output-wav
 datasets/*.zip
 datasets/*.py
 datasets/*.ipynb
