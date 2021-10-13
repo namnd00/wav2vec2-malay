@@ -104,7 +104,7 @@ if __name__ == "__main__":
                         dest="lm_path", default="pretrained_models/malay_lm")
 
     parser.add_argument("--bin_lm_path", required=True,
-                        dest="bin_lm_path", default="pretrained_models/malay_lm/4gram_malay_lm.binary")
+                        dest="bin_lm_path", default="pretrained_models/malay_lm/malay_lm.binary")
 
     parser.add_argument("--wav2vec2_model_path", required=True,
                         dest="wav2vec2_model_path", default="pretrained_models/")
