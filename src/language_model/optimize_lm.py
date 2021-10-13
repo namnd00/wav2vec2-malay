@@ -124,7 +124,7 @@ def optimize(lm_model_dir,
                                vocab=vocab,
                                model=model)
     print("Begin optimizing...")
-    study.optimize(optimize_lm_objective, n_jobs=n_jobs, n_trials=n_trials)
+    study.optimize(optimize_lm_func, n_jobs=n_jobs, n_trials=n_trials)
 
     print("End optimizing.")
     lm_best = {'alpha': study.best_params['lm_alpha'], 'beta': study.best_params['lm_beta']}
