@@ -46,6 +46,7 @@ def optimize_lm_objective(trial,
                           wer,
                           vocab,
                           model):
+    global result_wer
     def decode(batch):
         inputs = processor(batch["speech"], sampling_rate=16_000, return_tensors="pt", padding=True)
         with torch.no_grad():
@@ -90,8 +91,6 @@ def optimize(lm_model_dir,
              wav2vec_model_path,
              n_trials,
              n_jobs):
-
-    global result_wer
 
     test_dataset = pd.read_csv(test_dataset_path)
     test_dataset['path'] = dataset_dir + "/" + test_dataset['path']
