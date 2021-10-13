@@ -6,6 +6,7 @@ Contact : nam.nd.d3@gmail.com
 Time    : 09/10/2021
 Desc:
 """
+import argparse
 import os
 import io
 import sys
@@ -138,6 +139,7 @@ def optimize(lm_model_dir,
                                                                                       study.best_params['lm_beta'],
                                                                                       study.best_value))
 
+
 def parse_arguments():
     parser = argparse.ArgumentParser(description=DESCRIPTION)
     parser.add_argument("--lm_dir", required=True,
@@ -158,6 +160,7 @@ def parse_arguments():
     parser.add_argument("--dataset_dir", required=True,
                         help="path to test dataset directory")
     return parser.parse_args()
+
 
 if __name__ == "__main__":
     args = parse_arguments()
