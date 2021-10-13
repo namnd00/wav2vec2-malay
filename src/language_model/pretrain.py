@@ -32,6 +32,9 @@ def main():
     parser.add_argument("--batch_size", default=16, required=True,
                         type=int, help="Batch size, try to decrease this number if any CUDA memory problems occur")
 
+    parser.add_argument("--config_dir", default=None, required=True,
+                        type=str, help="Config dir for training")
+
     parser.add_argument("--config_name", default=None, required=True,
                         type=str, help="Config name for training")
 
@@ -70,7 +73,7 @@ def main():
     # cmd.append("optimization.max_update=2000000")
     cmd.append("dataset.num_workers=" + str(NUM_CPU))
     cmd.append("dataset.max_tokens=" + str(args.batch_size))
-    cmd.append("--config-dir config")
+    cmd.append(f"--config-dir {args.config_dir}")
     cmd.append(f"--config-name {args.config_name}")
     cmd = ' '.join(cmd)
     print(cmd)
