@@ -88,8 +88,8 @@ def optimize(lm_model_dir,
              test_dataset_path,
              dataset_dir,
              wav2vec_model_path,
-             n_trials=10,
-             n_jobs=1):
+             n_trials,
+             n_jobs):
     test_dataset = pd.read_csv(test_dataset_path)
     test_dataset['path'] = dataset_dir + "/" + test_dataset['path']
     test_dataset = Dataset.from_pandas(test_dataset)
@@ -151,10 +151,10 @@ def parse_arguments():
     parser.add_argument("--wav2vec2_model_path", required=True,
                         help="path to pretrained models directory")
 
-    parser.add_argument("--n_jobs", default=1, required=False,
+    parser.add_argument("--n_jobs", type=int, default=2, required=False,
                         help="number of jobs executed")
 
-    parser.add_argument("--n_trials", default=10, required=False,
+    parser.add_argument("--n_trials", type=int, default=10, required=False,
                         help="number of trials executed")
 
     parser.add_argument("--dataset_dir", required=True,
