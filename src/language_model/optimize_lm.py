@@ -46,7 +46,6 @@ def optimize_lm_objective(trial,
                           wer,
                           vocab,
                           model):
-    global result_wer
     def decode(batch):
         inputs = processor(batch["speech"], sampling_rate=16_000, return_tensors="pt", padding=True)
         with torch.no_grad():
@@ -60,29 +59,23 @@ def optimize_lm_objective(trial,
     alpha = trial.suggest_uniform('lm_alpha', 0, 6)
     beta = trial.suggest_uniform('lm_beta', 0, 5)
 
-    try:
-        binarylm_file_path = os.path.join(lm_model_dir, "malay_lm.bin")
-        ctcdecoder = CTCBeamDecoder(vocab,
-                                    model_path=binarylm_file_path,
-                                    alpha=alpha,
-                                    beta=beta,
-                                    cutoff_top_n=40,
-                                    cutoff_prob=1.0,
-                                    beam_width=100,
-                                    num_processes=4,
-                                    blank_id=processor.tokenizer.pad_token_id,
-                                    log_probs_input=True
-                                    )
-        result = test_dataset.map(decode)
-        result_wer = wer.compute(predictions=result["pred_strings_with_lm"], references=result["transripts"])
-        trial.report(result_wer, step=0)
+    binarylm_file_path = os.path.join(lm_model_dir, "malay_lm.bin")
+    ctcdecoder = CTCBeamDecoder(vocab,
+                                model_path=binarylm_file_path,
+                                alpha=alpha,
+                                beta=beta,
+                                cutoff_top_n=40,
+                                cutoff_prob=1.0,
+                                beam_width=100,
+                                num_processes=4,
+                                blank_id=processor.tokenizer.pad_token_id,
+                                log_probs_input=True
+                                )
+    result = test_dataset.map(decode)
+    result_wer = wer.compute(predictions=result["pred_strings_with_lm"], references=result["transcript"])
+    trial.report(result_wer, step=0)
 
-    except Exception as e:
-        print(e)
-        raise
-
-    finally:
-        return result_wer
+    return result_wer
 
 
 def optimize(lm_model_dir,
@@ -91,7 +84,6 @@ def optimize(lm_model_dir,
              wav2vec_model_path,
              n_trials,
              n_jobs):
-
     test_dataset = pd.read_csv(test_dataset_path)
     test_dataset['path'] = dataset_dir + "/" + test_dataset['path']
     test_dataset = Dataset.from_pandas(test_dataset)
