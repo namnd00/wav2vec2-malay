@@ -73,7 +73,7 @@ def optimize_lm_objective(trial,
                                     log_probs_input=True
                                     )
         result = test_dataset.map(decode)
-        result_wer = wer.compute(predictions=result["pred_strings_with_lm"], references=result["sentence"])
+        result_wer = wer.compute(predictions=result["pred_strings_with_lm"], references=result["transripts"])
         trial.report(result_wer, step=0)
 
     except Exception as e:
@@ -90,6 +90,9 @@ def optimize(lm_model_dir,
              wav2vec_model_path,
              n_trials,
              n_jobs):
+
+    global result_wer
+
     test_dataset = pd.read_csv(test_dataset_path)
     test_dataset['path'] = dataset_dir + "/" + test_dataset['path']
     test_dataset = Dataset.from_pandas(test_dataset)
