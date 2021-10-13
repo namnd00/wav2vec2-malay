@@ -66,7 +66,7 @@ def main(wav2vec2_model_path,
          **args):
     global processor
     global model
-    global vocab
+    global vocab                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                
     global ctcdecoder
     global kenlm_ctcdecoder
 
@@ -115,7 +115,7 @@ if __name__ == "__main__":
     parser.add_argument("--test_dataset_path", required=True,
                         dest="test_dataset_path", default="datasets/test.csv")
 
-    parser.add_argument("--batch_size",
+    parser.add_argument("--batch_size", type=int,
                         dest="batch_size", default=8)
 
     parser.add_argument("--benchmarks",

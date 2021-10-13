@@ -27,7 +27,7 @@ def main():
     #                     type=str, help="Path to English pretrain wav2vec model")
 
     parser.add_argument("--init_model", default=None, required=True,
-                        type=str, help="Path to English pretrain wav2vec model")
+                        type=str, help="Path to pretrain wav2vec model")
 
     parser.add_argument("--batch_size", default=16, required=True,
                         type=int, help="Batch size, try to decrease this number if any CUDA memory problems occur")
@@ -48,7 +48,10 @@ def main():
         os.makedirs(temp_dir)
 
     cmd = 'python ' + MANIFEST_PATH + ' ' + args.audio_path + ' --dest ' + temp_dir + ' --ext wav --valid-percent 0.05'
+    print(cmd)
+    print("Prepare training data manifest...")
     os.system(cmd)
+    print("End training data manifest.")
 
     # Pretrain the model
     NUM_GPU = torch.cuda.device_count()
@@ -76,9 +79,9 @@ def main():
     cmd.append(f"--config-dir {args.config_dir}")
     cmd.append(f"--config-name {args.config_name}")
     cmd = ' '.join(cmd)
-    print(cmd)
-
+    print("Training wav2vec 2.0 large model...")
     os.system(cmd)
+    print("End training...")
 
 
 main()
