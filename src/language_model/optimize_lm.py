@@ -60,7 +60,7 @@ def optimize_lm_objective(trial,
     beta = trial.suggest_uniform('lm_beta', 0, 5)
 
     try:
-        binarylm_file_path = os.path.join(lm_model_dir, "*.binary")
+        binarylm_file_path = os.path.join(lm_model_dir, "malay_lm.binary")
         ctcdecoder = CTCBeamDecoder(vocab,
                                     model_path=binarylm_file_path,
                                     alpha=alpha,
