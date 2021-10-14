@@ -9,3 +9,6 @@ https://drive.google.com/file/d/165IGV-a4PLEAq7XmKiou0PuwEjvuFZWp/view?usp=shari
 
 #datasets.zip (link2)
 https://drive.google.com/file/d/1ZIi1q6fZsZb_Lpnq6mvebfNlZvShmp2G/view?usp=sharing
+
+#data.zip(google_AIP)
+https://drive.google.com/file/d/1xaUF_E_FqLP9TEKWC3-YoJh404fcXUAj/view
