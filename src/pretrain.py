@@ -26,13 +26,16 @@ def main():
     parser.add_argument("--learning_rate", default=0.005, required=True,
                         type=float, help="Learning rate")
                         
+    parser.add_argument("--lr_schedule_type", default="cosine", required=True,
+                        type=str, help="Learning rate schedule type (cosine,fixed,inverse_sqrt,manual,pass_through,polynomial_decay,reduce_lr_on_plateau,tri_stage,triangular)")
+                        
     parser.add_argument("--wandb_project", default="self_supervised_wav2vec2_model", required=False,
                         type=str, help="Weights and Biases project name to use for logging")                    
 
     parser.add_argument("--init_model", default=None, required=True,
                         type=str, help="Path to pretrain wav2vec model")
 
-    parser.add_argument("--max_tokens", default=480000, required=True,
+    parser.add_argument("--max_tokens", default=50000, required=True,
                         type=int, help="Max of tokens")
                         
     parser.add_argument("--max_epoch", default=100, required=True,
