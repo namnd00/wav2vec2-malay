@@ -9,6 +9,7 @@ Desc:
 
 from os.path import abspath
 import os
+import json
 import argparse
 from tqdm import tqdm
 
@@ -49,7 +50,7 @@ def train_lm(args):
 
     if args.additional_file != None:
         with open(args.additional_file, encoding="utf-8") as f:
-            train += f.read().lower().splitlines()
+            train += json.load(f)
 
     vocabs = set([])
     for line in tqdm(train):

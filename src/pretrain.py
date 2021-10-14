@@ -54,7 +54,7 @@ def main():
                         type=str, help="Extension of wav audio")
                         
     parser.add_argument("--valid_percent", default=0.05, required=False,
-                        type=int, help="Validation percent from entire dataset")
+                        type=float, help="Validation percent from entire dataset")
                         
     args = parser.parse_args()
 
