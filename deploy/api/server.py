@@ -3,7 +3,7 @@ import os
 from fastapi import FastAPI, File, UploadFile
 import uvicorn
 import shutil
-import hashlib
+
 from pydantic import BaseModel
 
 from predicts.wav2vec2_predict_services import init_services
@@ -33,10 +33,11 @@ class ModelPattern:
         return {"model": self.model, "lm": self.lm}
 
 
-AUDIO_DIR = os.path.join(os.path.dirname(__file__), "audio")
+AUDIO_DIR = "./api/audio"
 
 # init instance ModelPattern
 model_pattern = ModelPattern("model1", "4-gram")
+
 
 @app.get('/')
 @app.get('/home')
@@ -56,12 +57,10 @@ def up_file(file: UploadFile = File(...)):
             }
     """
     # get file from POST request and save it
-    file_name = str(random.randint(0, 100000))
-        
     if ".wav" in file.filename:
-        file_name = file_name + ".wav"
+        file_name = str(random.randint(0, 100000)) + ".wav"
     elif ".mp3" in file.filename:
-        file_name = file_name + ".mp3"
+        file_name = str(random.randint(0, 100000)) + ".mp3"
     else:
         return jsonable_encoder("Audio format error")
     with open(os.path.join(AUDIO_DIR, file_name), "wb") as buffer:
