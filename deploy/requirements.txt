@@ -1,0 +1,13 @@
+packaging
+numpy
+wave
+jiwer
+webrtcvad
+transformers
+tqdm==4.61.0
+pyyaml==5.4.1
+torchaudio==0.7.2
+torch==1.7.1
+librosa
+srt
+praatio<5

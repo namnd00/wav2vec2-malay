@@ -9,7 +9,7 @@ Desc:
 import logging
 
 from transformers import TrainerCallback
-from timer import Timer
+from .timer import Timer
 
 logger = logging.getLogger(__name__)
 log_timestamp = Timer()
