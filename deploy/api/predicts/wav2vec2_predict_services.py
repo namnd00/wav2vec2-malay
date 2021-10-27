@@ -4,6 +4,8 @@ from pydub import AudioSegment
 import soundfile as sf
 import yaml
 import torch
+import numpy as np
+import json
 import os
 from time import time
 import librosa
@@ -49,10 +51,10 @@ class Wav2vec2PredictServices:
                 logits = model(inputs.input_values, attention_mask=inputs.attention_mask).logits
 
             # get the predicted label
-            if pattern_dict["lm"] == "none":
+            if pattern_dict["lm"] == 'CTC':
                 predicted_ids = torch.argmax(logits, dim=-1)
                 predicts = processor.decode(predicted_ids[0])
-            elif pattern_dict["lm"] == "4-gram":
+            elif pattern_dict["lm"] == 'CTC + 4-gram':
                 beam_results, beam_scores, timesteps, out_lens = kenlm_ctcdecoder.decode(logits)
                 pred_with_lm = "".join(vocab[n] for n in beam_results[0][0][:out_lens[0][0]])
                 predicts = pred_with_lm.strip()
@@ -60,7 +62,7 @@ class Wav2vec2PredictServices:
             results += " "
             print("pred_label: ", predicts)
         predict_time = time() - start_time
-        results += f" (predict_time: {predict_time} s)"
+        # results += f" (predict_time: {predict_time} s)"
 
         return results.strip()
 
@@ -75,15 +77,15 @@ class Wav2vec2PredictServices:
             audio = AudioSegment.from_file(file_path)
             file_name = file_path.replace(".mp3", ".wav")
             print(file_name)
-            audio = audio.set_frame_rate(44100).set_channels(1)
+            audio = audio.set_frame_rate(16000).set_channels(1)
             audio.export(file_name, format="wav")
-            signal, sample_rate = sf.read(file_name)
+            signal, sample_rate = librosa.load(file_name, sr=SAMPLE_RATE, mono=True)
             print("sample_rate", sample_rate)
-            signal = self._resample_if_necessary(signal, sample_rate)
+            #signal = self._resample_if_necessary(signal, sample_rate)
             return signal
         else:
-            signal, sample_rate = sf.read(file_path)
-            signal = self._resample_if_necessary(signal, sample_rate)
+            signal, sample_rate = librosa.load(file_path, sr=SAMPLE_RATE, mono=True)
+            # signal = self._resample_if_necessary(signal, sample_rate)
             return signal
 
     @staticmethod
@@ -93,6 +95,7 @@ class Wav2vec2PredictServices:
         :param sr: sampling rate (int)
         :return: signal(np.array) with fixed sampling rate(16000)
         """
+
         if sr != SAMPLE_RATE:
             signal = librosa.resample(signal, sr, SAMPLE_RATE)
         return signal
