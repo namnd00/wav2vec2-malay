@@ -3,9 +3,7 @@ import os
 from fastapi import FastAPI, File, UploadFile
 import uvicorn
 import shutil
-
 from pydantic import BaseModel
-
 from predicts.wav2vec2_predict_services import init_services
 from fastapi.encoders import jsonable_encoder
 
@@ -36,7 +34,7 @@ class ModelPattern:
 AUDIO_DIR = "./api/audio"
 
 # init instance ModelPattern
-model_pattern = ModelPattern("model1", "4-gram")
+model_pattern = ModelPattern("model1", "CTC + 4-gram")
 
 
 @app.get('/')
